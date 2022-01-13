@@ -1,3 +1,2 @@
-# Data-massaging
-# this is a readme file which you should definitely read
-# this is a line I want to add
+# Data massaging
+These scripts clean Wildtrax output, then summarise the data into independent detections.
