@@ -21,19 +21,19 @@ dats<-rbind(dat1,dat2)
 str(dats)
 dats$location_3<-str_pad(dats$location_3,3,side = "left",pad="0")
 dats$location_4<-str_pad(dats$location_4,2,side="left",pad="0")
-dats$Location<-str_c(dats$location_1,dats$location_2,dats$location_3,dats$location_4,sep="-")
-head(dats$Location)
+dats$location<-str_c(dats$location_1,dats$location_2,dats$location_3,dats$location_4,sep="-")
+head(dats$location)
 
 
 cov<-read.csv("Tuyeta_Station_Covariates.csv")
-latlongs<-cov[,c("Location","Latitude","Longitude")]
+latlongs<-cov[,c("location","latitude","longitude")]
 head(latlongs)
 
 
 dats<-subset(dats, select = -c(latitude, longitude))
-birddata<-merge(latlongs,dats, all.y=T, by = "Location")
-birddata$Latitude<-as.numeric(birddata$Latitude)
-summary(birddata$Latitude)
+birddata<-merge(latlongs,dats, all.y=T, by = "location")
+birddata$latitude<-as.numeric(birddata$latitude)
+summary(birddata$latitude)
 
 birddata2=birddata%>%
   select(-project,-organization,-status,-buffer_radius_m, -scientific_name,
@@ -44,6 +44,6 @@ birddata2=birddata%>%
          -hourly_temp,-hourly_dew_point,-hourly_rel_humidity,-hourly_station_pressure,
          -hourly_humidex,-hourly_wind_chill,-hourly_wind_direction,-hourly_weather_attributes,
          -hourly_precipitation_mm,-hourly_wind_speed,-hourly_visibility_km,-land_features,
-         -equipment_used,-tagged_in_wildtrax,-location,-location_1,-location_2,-location_3,-location_4)
+         -equipment_used,-tagged_in_wildtrax,-location_1,-location_2,-location_3,-location_4)
 
 write.csv(birddata,paste0("Tuyeta_ARU_Detection_Data_", version, ".csv"),row.names = F)
