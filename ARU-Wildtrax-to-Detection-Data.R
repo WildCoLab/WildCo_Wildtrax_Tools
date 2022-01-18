@@ -1,6 +1,13 @@
-# This script is meant to turn the raw data downloads into detection data
+# This script is to make Wildtrax ARU data output cleaner
 
-#### Part I - ARU data ####
+
+# TO DO with this one
+# independent detections per station
+# deployment data
+
+
+# Created by Laura Nicole Stewart
+# laura.nicole.stewart@gmail.com 
 
 
 ##### 0. Set up data and workspace ####

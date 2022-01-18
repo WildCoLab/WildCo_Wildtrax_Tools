@@ -1,5 +1,15 @@
 # This script is to make Wildtrax camera data output cleaner
-# and to make it work in the Single Site Exploration by WildCo Lab
+# and create a deployment spreadsheet 
+
+# Created by Laura Nicole Stewart
+# And Chris Beirne
+# laura.nicole.stewart@gmail.com 
+
+
+# TO DO WITH THIS SCRIPT
+# 1. VNA TO NA
+# 2. FINISH GROUP COUNT & INDEPENDENT
+# 3. ACTIVE CAMERA TIME IN DEPLOYMENT SHEET
 
 #### 0. Set up and load data ####
 
@@ -7,8 +17,11 @@ library(lubridate)
 library(dplyr)
 library(tidyr)
 library(mefa4)
+library(stringr)
 
 version<-"v4"
+
+independent <- 30 # Set the "independence" interval in minutes
 
 setwd("C:/Users/laura/Documents/Wildco/3. Data and scripts/1. Master data")
 
@@ -42,7 +55,7 @@ summary(data)
 data=arrange(data,location,date_detected)
 
 
-#### 2. Create Deployment data using START and END tags ####
+#### 2. Create Deployment dataframe using START and END tags ####
 
 
 deployment_data = data[,c("project", "location","date_detected","field_of_view")]
@@ -156,6 +169,84 @@ lessdata = data %>%
 str(lessdata)
 
 
-#### 4. Pull group count from comments ####
+#### 4. Independent detections and Group Count ####
 
-lessdata
+# Remove observations without animals detected
+dat <- lessdata[lessdata$common_name!="NONE",]
+
+# Order the dataframe by location, date
+dat <- dat[order(dat$location, dat$date_detected),]
+head(dat)
+
+dat <- dat %>%
+  arrange(location, date_detected) %>%
+  group_by(location, common_name) %>%
+  mutate(duration = int_length(lag(date_detected) %--% date_detected) )
+
+# loop that assigns group ID
+dat$Event.ID <- 9999
+mins <- independent
+seq <- as.numeric(paste0(nrow(dat),0))
+seq <- round(seq,-(nchar(seq)))
+for (i in 2:nrow(dat)) {
+  dat$Event.ID[i-1]  <- paste0("E",format(seq, scientific = F))
+  if(is.na(dat$duration[i]) | abs(dat$duration[i]) > (mins * 60)){
+    seq <- seq + 1
+  }
+}
+
+# Update the information for the last row
+# group ID  for the last row
+if(dat$duration[nrow(dat)] < (mins * 60)|
+   is.na(dat$duration[nrow(dat)])){
+  dat$Event.ID[nrow(dat)] <- dat$Event.ID[nrow(dat)-1]
+} else{
+  dat$Event.ID[nrow(dat)] <- paste0("E",format(seq+1, scientific = F))
+}
+
+
+# This is where we need the Minimum.Group.Size
+
+dat$tag_comments
+group<-str_match(dat$tag_comments, "gc")
+group<-as.factor(group)
+summary(group)
+head(group)
+dat$tag_comments[! is.na(group)]
+
+
+
+# Calculate the event length and size
+
+# find out the last and the first of the time in the group
+top <- dat %>% group_by(Event.ID) %>% top_n(1,date_detected) %>% select(Event.ID, date_detected)
+bot <- dat %>% group_by(Event.ID) %>% top_n(-1,date_detected) %>% select(Event.ID, date_detected)
+names(bot)[2] <- c("Date_Time.Captured_end")
+dec_no <- dat %>% group_by(Event.ID) %>% summarise(n())
+event_grp <- dat %>% group_by(Event.ID) %>% summarise(max(Minimum.Group.Size))
+
+# caculate the duration
+diff <-  top %>% left_join(bot, by="Event.ID") %>%
+  mutate(duration=abs(int_length(Date_Time.Captured %--% Date_Time.Captured_end))) %>%
+  left_join(event_grp, by="Event.ID")%>%
+  left_join(dec_no, by="Event.ID")
+
+# Remove duplicates
+diff <- diff[duplicated(diff)==FALSE,]
+
+names(diff) <- c("Event.ID","Date_Time.end","Date_Time.start","Event.Duration","Event.Groupsize","Event.Observations")
+diff$Date_Time.end<-NULL;diff$Date_Time.start<-NULL
+dat$duration <-NULL
+# Merge the data
+dat <-  dat %>%
+  left_join(diff,by="Event.ID")
+
+# Subset to the first observation in each event
+
+# Subset to 30 minute indepedenents
+ind.dat <- dat[!duplicated(dat$Event.ID),]
+ind.dat <- as.data.frame(ind.dat)
+ind.dat$Species <-as.factor(ind.dat$Species)
+
+# Save it for a rainy day
+write.csv(ind.dat, paste0(dat$Project.ID[1], "_",independent ,"min_Independent.csv"), row.names = F)
