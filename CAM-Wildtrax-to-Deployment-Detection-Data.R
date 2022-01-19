@@ -215,6 +215,19 @@ head(group)
 dat$tag_comments[! is.na(group)]
 
 
+# And Minimum.Species.Group.Size
+
+
+demcomments<-dat$image_comments[str_detect(dat$image_comments, "group count = ")]
+str_locate(demcomments, "group count = ")
+pos<-str_locate(demcomments, "group count = ")[,2]
+str_sub(demcomments, start = pos+1, end = pos+3)
+tmp=str_sub(demcomments, start = pos+1, end = pos+3)
+tmp[390]<-paste0(tmp[390],", 2")
+tmp
+str_replace_all()
+
+
 
 # Calculate the event length and size
 
