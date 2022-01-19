@@ -215,6 +215,15 @@ head(group)
 dat$tag_comments[! is.na(group)]
 
 
+
+
+
+
+
+
+
+
+
 # And Minimum.Species.Group.Size
 
 
@@ -225,7 +234,16 @@ str_sub(demcomments, start = pos+1, end = pos+3)
 tmp=str_sub(demcomments, start = pos+1, end = pos+3)
 tmp[390]<-paste0(tmp[390],", 2")
 tmp
-str_replace_all()
+endpos=str_locate(tmp,"\\D")[,2]
+endpos[is.na(endpos)]<-2
+str_sub(tmp,start = 1, end = endpos-1)
+
+
+
+
+
+
+
 
 
 
@@ -238,7 +256,7 @@ names(bot)[2] <- c("Date_Time.Captured_end")
 dec_no <- dat %>% group_by(Event.ID) %>% summarise(n())
 event_grp <- dat %>% group_by(Event.ID) %>% summarise(max(Minimum.Group.Size))
 
-# caculate the duration
+# calculate the duration
 diff <-  top %>% left_join(bot, by="Event.ID") %>%
   mutate(duration=abs(int_length(Date_Time.Captured %--% Date_Time.Captured_end))) %>%
   left_join(event_grp, by="Event.ID")%>%
