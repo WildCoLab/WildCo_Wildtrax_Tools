@@ -229,7 +229,7 @@ str_replace_all()
 
 
 
-# Calculate the event length and size
+# Calculate the event length and size 
 
 # find out the last and the first of the time in the group
 top <- dat %>% group_by(Event.ID) %>% top_n(1,date_detected) %>% select(Event.ID, date_detected)
