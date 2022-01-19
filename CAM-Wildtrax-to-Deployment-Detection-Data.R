@@ -261,6 +261,22 @@ for (i in 1: nrow(events2)){
   }
 }
 
+
+#### take a look at potential mistakes.
+### then, take whichever is bigger. gc_estimated vs gc_species
+#### remove max count also
+### and give them better names!
+
+
+
+
+
+
+
+
+
+
+
 # Calculate the event length and size 
 
 # find out the last and the first of the time in the group
