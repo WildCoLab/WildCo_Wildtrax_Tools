@@ -6,11 +6,6 @@
 # laura.nicole.stewart@gmail.com 
 
 
-# TO DO WITH THIS SCRIPT
-# 1. VNA TO NA
-# 2. FINISH GROUP COUNT & INDEPENDENT
-# 3. ACTIVE CAMERA TIME IN DEPLOYMENT SHEET
-
 #### 0. Set up and load data ####
 
 library(lubridate)
@@ -19,7 +14,8 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v4"
+version<-"v5"
+project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
 
@@ -40,9 +36,12 @@ data$field_of_view<-as.factor(data$field_of_view)
 data$common_name<-as.factor(data$common_name)
 data$age_class<-as.factor(data$age_class)
 data$sex<-as.factor(data$sex)
-data$count<-as.numeric(data$count) # as NUMERIC this time
+data$count<-as.numeric(data$number_individuals) # as NUMERIC this time
+data$number_individuals<-NULL
 data$field_of_view<-as.factor(data$field_of_view)
 summary(data$field_of_view)
+
+data[data == "VNA"]<-NA
 
 as.POSIXct(head(data$date_detected))
 as.POSIXct(head(data$date_detected), tz = "MST") # these were deployed in MST
@@ -98,12 +97,12 @@ deploy_full=unique(deploy_full)
 
 # time to look for mistakes again
 
-mistakes.new=deploy_full[1,]
-mistakes.new[1,]<-rep(NA,4)
+mistakes.fieldofview=deploy_full[1,]
+mistakes.fieldofview[1,]<-rep(NA,4)
 
 for (i in 2: nrow(deploy_full)){
   if (deploy_full$field_of_view[i] == deploy_full$field_of_view[i-1]){
-    mistakes.new=rbind(mistakes.new,deploy_full[(i-1):i,])
+    mistakes.fieldofview=rbind(mistakes.fieldofview,deploy_full[(i-1):i,])
   }
 }
 
@@ -142,7 +141,10 @@ names(deploy_wide)<- c("Project.ID",	"location",
                        "Camera.Deployment.Begin.Date",	"Camera.Deployment.End.Date",
                        "Deployment.ID",	"Camera.Failure.Details")
 
-write.csv(deploy_wide, paste0("Tuyeta_Deployment_Data_", version, ".csv"),row.names = F)
+deploy_wide = deploy_wide %>% mutate(duration = Camera.Deployment.End.Date - Camera.Deployment.Begin.Date)
+class(deploy_wide$duration)
+
+write.csv(deploy_wide, paste0(project,"_Deployment_Data_", version, ".csv"),row.names = F)
 
 
 
@@ -153,10 +155,7 @@ str(data)
 
 names(data)[13]
 names(data)[13]<-"age"
-names(data)[15]
-names(data)[15]<- "count"
-data$age[data$age == "VNA"] <- NA
-data$sex[data$sex == "VNA"] <- NA
+
 
 lessdata = data %>%
   select(-project, - organization, -buffer_radius_m, -scientific_name, -daily_weather_station_nm,
@@ -262,19 +261,29 @@ for (i in 1: nrow(events2)){
 }
 
 
-#### take a look at potential mistakes.
-### then, take whichever is bigger. gc_estimated vs gc_species
-#### remove max count also
-### and give them better names!
+# look at potential mistakes
+# note that just because gc_estimated is bigger than gc_species
+# that doesn't mean that there is necessarily a mistake
+# because gc_species comes from the comments based on 5 minute independent
+# and gc_estimated comes from the 30 minute independent
 
+mistakes.groupcount <- events2[events2$mistake == T & !is.na(events2$mistake),]
 
+write.csv(mistakes.groupcount,paste0(project, "_mistakes_groupcount_",version,".csv"))
 
+events2$gc_sp_final<-rep(NA, nrow(events2))
 
+for ( i in 1: nrow(events2)){
+  events2$gc_sp_final[i] <- max(events2$gc_estimated[i], events2$gc_species[i])
+}
 
+events2<-events2 %>%
+  select (-gc_regular, -gc_species, -gc_estimated, -mistake)
 
-
-
-
+names(events2)[5]
+names(events2)[5]<-"group_count"
+names(events2)[6]
+names(events2)[6]<-"species_count"
 
 
 # Calculate the event length and size 
@@ -296,8 +305,8 @@ diff <- diff[duplicated(diff)==FALSE,]
 
 # Merge the data
 independent_data <-  merge(diff, events2, by = "Event.ID", all.y = T)
-
+str(independent_data)
 
 
 # Save it for a rainy day
-write.csv(independent_data, paste0("Tuyeta_independent_",version, ".csv"), row.names = F)
+write.csv(independent_data, paste0(project,"_independent_",version, ".csv"), row.names = F)
