@@ -54,7 +54,7 @@ summary(data)
 data=arrange(data,location,date_detected)
 
 
-#### 2. Create Deployment dataframe using START and END tags ####
+#### 2. Create deployment dataframe using START and END tags ####
 
 
 deployment_data = data[,c("project", "location","date_detected","field_of_view")]
@@ -144,7 +144,7 @@ names(deploy_wide)<- c("Project.ID",	"location",
 deploy_wide = deploy_wide %>% mutate(duration = Camera.Deployment.End.Date - Camera.Deployment.Begin.Date)
 class(deploy_wide$duration)
 
-write.csv(deploy_wide, paste0(project,"_Deployment_Data_", version, ".csv"),row.names = F)
+write.csv(deploy_wide, paste0(project,"_CAM_Deployment_Data_", version, ".csv"),row.names = F)
 
 
 
@@ -168,6 +168,8 @@ lessdata = data %>%
          -camera_make, -camera_model, -serial_number)
 
 str(lessdata)
+
+write.csv(lessdata, paste0(project, "_CAM_Detection_Data_", version,".csv" ), row.names=F)
 
 
 #### 4. Independent detections and Group Count ####
@@ -309,4 +311,4 @@ str(independent_data)
 
 
 # Save it for a rainy day
-write.csv(independent_data, paste0(project,"_independent_",version, ".csv"), row.names = F)
+write.csv(independent_data, paste0(project,"_CAM_Independent_Detections_",version, ".csv"), row.names = F)
