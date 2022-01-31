@@ -1,5 +1,6 @@
 # This script is to make Wildtrax camera data output cleaner
-# and create a deployment spreadsheet 
+# and create a deployment spreadsheet, pull group count from the comments, 
+# and create an independent detections spreadsheet
 
 # Created by Laura Nicole Stewart
 # And Chris Beirne
@@ -172,7 +173,7 @@ str(lessdata)
 write.csv(lessdata, paste0(project, "_CAM_Detection_Data_", version,".csv" ), row.names=F)
 
 
-#### 4. Independent detections and Group Count ####
+#### 4. Independent detections and group count ####
 
 # Remove observations without animals detected
 dat <- lessdata[lessdata$common_name!="NONE",]
@@ -227,7 +228,6 @@ endpos[is.na(endpos)]<-2
 dat$groupcount_species <-str_sub(tmp,start = 1, end = endpos-1)
 
 
-
 # Now collapse the thing into independent events
 class(dat$count)
 
@@ -266,8 +266,8 @@ for (i in 1: nrow(events2)){
 # look at potential mistakes
 # note that just because gc_estimated is bigger than gc_species
 # that doesn't mean that there is necessarily a mistake
-# because gc_species comes from the comments based on 5 minute independent
-# and gc_estimated comes from the 30 minute independent
+# because gc_species comes from the comments based on 5 minute threshold
+# and gc_estimated comes from the 30 minute threshold
 
 mistakes.groupcount <- events2[events2$mistake == T & !is.na(events2$mistake),]
 
