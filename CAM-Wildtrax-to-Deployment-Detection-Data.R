@@ -15,7 +15,7 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v5"
+version<-"v6"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
@@ -69,15 +69,18 @@ deployment_data=unique(deployment_data) #START and END will be duplicated if the
 # now bring in the first and last images into this data frame
 # in case they haven't been tagged as START or END
 
-
+# start with the first row
 firstnlast=data[1,c("project", "location","date_detected","field_of_view")]
-f.l.data<-data[data$field_of_view != "Out of Range",]
+
+# now add every row where the station name changes over
+f.l.data<-data[data$field_of_view != "Out of Range",] #except not the out of range images
 i=1
 for (i in 2: nrow(f.l.data)){
   if (f.l.data$location[i] != f.l.data$location[i-1]){
     firstnlast=rbind(firstnlast,f.l.data[(i-1):i,c("project", "location","date_detected","field_of_view")])
   }
 }
+# now add the last last row
 firstnlast=rbind(firstnlast,f.l.data[nrow(f.l.data),c("project", "location","date_detected","field_of_view")]) # last row
 
 firstnlast=firstnlast %>% 
@@ -107,6 +110,7 @@ for (i in 2: nrow(deploy_full)){
   }
 }
 
+mistakes.fieldofview
 
 # add a deployment id in order to turn long format into wide format
 
