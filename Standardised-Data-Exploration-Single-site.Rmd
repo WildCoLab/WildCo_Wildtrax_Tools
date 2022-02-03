@@ -111,7 +111,7 @@ eff$Camera.Deployment.End.Date <- as.POSIXct(strptime(eff$Camera.Deployment.End.
 
 eff$Days <- as.numeric(round(difftime(eff$Camera.Deployment.End.Date, eff$Camera.Deployment.Begin.Date, units="days"),1))
 
-dat$Date_Time.Captured <- as.POSIXct(strptime(dat$date_detected, "%Y-%m-%d %H:%M:%S", tz ))
+dat$date_detected <- as.POSIXct(strptime(dat$date_detected, "%Y-%m-%d %H:%M:%S", tz ))
 
 # Count the number of camera stations
 n.stat <- length(unique(eff$location))
