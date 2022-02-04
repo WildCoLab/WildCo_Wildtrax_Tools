@@ -13,6 +13,7 @@ library(lubridate)
 library(sf)
 library(tmap)
 library(stringr)
+library(tidyr)
 
 
 # Load your data [change the files paths to your data locations]
@@ -245,10 +246,11 @@ tmp4 <- data.frame("location"=plot.order, "Plot.grp"=ceiling(1:length(unique(eff
 eff <- left_join(eff,tmp4, by="location")
 
 j <- 1
+i <- 1
 for(j in 1:length(unique(eff$Plot.grp)))
 {
     layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
-    par(mar=c(2,6,1,1))
+    par(mar=c(2,8,1,1))
     
     plot(c(min(eff$Camera.Deployment.Begin.Date, na.rm=T), max(eff$Camera.Deployment.End.Date, na.rm=T)),      c(1,length(unique(eff$location[eff$Plot.grp==j]))), las=1, ylab="", xlab="", type="n", yaxt="n")
     
@@ -278,63 +280,6 @@ for(j in 1:length(unique(eff$Plot.grp)))
 
 ```
 
-## Species metadata
-
-Of the images classfied as containing animals, the proportion of photographs assigned to the following catagories are as follows:
-
-### Sex
-
-```{r sex, echo=F, include=F}
-col.name <- "sex"
-
-tmp <- table(dat[,col.name], as.character(dat$common_name))
-tmp <- as.data.frame.matrix(tmp)
-dat[,col.name] <- factor(dat[,col.name])
-cols <- wheel("lightseagreen", num = length(levels(dat[,col.name])))
-# Name catagories with no data N\A for NOT ASSESSED
-row.names(tmp)[row.names(tmp)==""] <- "N/A"
-# make it the last level
-tmp <- tmp[c(2:nrow(tmp),1),]
-data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
-
-```
-
-```{r sex plot, echo=F, fig.height=sp.height}
-layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
-par(mar=c(5,10,1,1))
-barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
-par(mar=c(0,0,4,0))
-plot.new()
-legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
-```
-
-### Age
-
-```{r age, echo=F, include=F}
-col.name <- "age"
-
-tmp <- table(dat[,col.name], as.character(dat$common_name))
-tmp <- as.data.frame.matrix(tmp)
-dat[,col.name] <- factor(dat[,col.name])
-cols <- wheel("lightseagreen", num = length(levels(dat[,col.name])))
-# Name categories with no data N\A for NOT ASSESSED
-row.names(tmp)[row.names(tmp)==""] <- "N/A"
-# make it the last level
-tmp <- tmp[c(2:nrow(tmp),1),]
-
-data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
-
-```
-
-```{r age plot, echo=F, fig.height=sp.height}
-layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
-par(mar=c(5,10,1,1))
-barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
-par(mar=c(0,0,4,0))
-plot.new()
-legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
-
-```
 
 Using an independance threshold of `r independent` minutes, the number of detections is reduced to `r nrow(ind.dat)`. The rest of the analyses are conducted with this data. The summary of detections is as follows:
 
@@ -360,6 +305,84 @@ abline(v=1, lty=2)
 
 ```
 
+## Species metadata
+
+Of the images classfied as containing animals, the proportion of photographs assigned to the following catagories are as follows:
+
+### Sex
+
+```{r sex, echo=F, include=F}
+
+
+b<-ind.dat %>% group_by(common_name, sex) %>% summarise(n = sum(group_count))
+d<-t(spread(b, sex, n))
+e<-as.data.frame(d[2:4,])
+names(e)<-d[1,]
+e[is.na(e)]<-0
+e
+str(e)
+
+tmp <- e
+for (i in 1: ncol(e)){
+  tmp[,i] <- as.numeric(e[,i])
+}
+
+
+
+dat[,"sex"] <- factor(dat[,"sex"])
+cols <- wheel("lightseagreen", num = length(levels(dat[,"sex"])))
+
+data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
+
+```
+
+```{r sex plot, echo=F, fig.height=sp.height}
+layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
+par(mar=c(5,10,1,1))
+barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
+par(mar=c(0,0,4,0))
+plot.new()
+legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
+```
+
+### Age
+
+```{r age, echo=F, include=F}
+
+str(ind.dat)
+
+b<-ind.dat %>% group_by(common_name, age) %>% summarise(n = sum(group_count))
+d<-t(spread(b, age, n))
+e<-as.data.frame(d[2:4,])
+names(e)<-d[1,]
+e[is.na(e)]<-0
+e
+str(e)
+
+tmp <- e
+for (i in 1: ncol(e)){
+  tmp[,i] <- as.numeric(e[,i])
+}
+
+
+dat[,"age"] <- factor(dat[,"age"])
+cols <- wheel("lightseagreen", num = length(levels(dat[,"age"])))
+
+
+data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
+
+```
+
+```{r age plot, echo=F, fig.height=sp.height}
+layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
+par(mar=c(5,10,1,1))
+barplot(data_percentage , border="white",col= cols, ylab="", las=1, xlab="% of observations", cex.names=0.7, horiz=2)
+par(mar=c(0,0,4,0))
+plot.new()
+legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
+
+```
+
 ## Group size distribution
 
 ```{r group size, echo=F, eval=T,fig.height=sp.height}
@@ -372,7 +395,7 @@ axis(2, 1:length(unique(ind.dat$common_name)), labels=levels(as.factor(ind.dat$c
 
 # Site-level species covariance
 
-This plot shows the covariance between different species at the site level for species with \>5 unique detections. For example, if you typically get lots of caribou and bears at the same site, they will have positive covariance. If you get caribou where you dont get bears, they will have negative covariance.
+This plot shows the covariance between different species at the site level for species with \>5 unique detections. For example, if you typically get lots of caribou and bears at the same site, they will have positive covariance. If you get caribou where you don't get bears, they will have negative covariance.
 
 ```{r covariance, echo=F, fig.height=sp.height,fig.width=sp.height, eval=T}
 par(mfrow=c(1,1))
@@ -382,10 +405,10 @@ M <- cor(tmp)
 
 corrplot(M, method="color", #col=matrix(col(200)),
          type="upper", order="hclust",
-         #addCoef.col = "black", # Add coefficient of correlation
-         tl.col="black", tl.srt=45, #Text label color and rotation
+         # addCoef.col = "black", # Add coefficient of correlation
+         tl.col="black", tl.srt=45, tl.cex = 0.5, #Text label color and rotation
          # Combine with significance
-         #p.mat = p.mat, sig.level = 0.01, insig = "blank",
+         # p.mat = p.mat, sig.level = 0.01, insig = "blank",
          # hide correlation coefficient on the principal diagonal
          diag=FALSE
          )
@@ -398,7 +421,7 @@ corrplot(M, method="color", #col=matrix(col(200)),
 
 Across all sites and species:
 
-```{r, echo=F, eval=T}
+```{r calculate monthly data summaries, echo=F, eval=T, include= F}
 # Capture rates through time
 focal.sp <- as.character(det.sum.total[det.sum.total$n>0,]$common_name)
 focal.sp <- focal.sp[order(focal.sp)]
@@ -406,7 +429,7 @@ focal.sp <- focal.sp[order(focal.sp)]
 focal.sp <- focal.sp[focal.sp!=""]
 
 # We need to know how many detections there are in each month -> create a row lookup
-# This is just a list of ever day a camera was active.
+# This is just a list of every day a camera was active.
 
 tmp <- eff[is.na(eff$Camera.Deployment.End.Date)==F,]
 daily.lookup <- list()
@@ -462,8 +485,6 @@ axis(side=1, at=xtick, labels = FALSE )
 # Overall capture rate
 plot(mon.dat$timestamp, mon.dat$Total.CR, ylab="Monthly total CR per 100 days", xlab="Date", type="l", las=2, ylim=c(0, max(mon.dat$Total.CR)))
 points(mon.dat$timestamp, mon.dat$Total.CR, pch=19, col=rgb(0,0,0,0.4))
-year(mon.dat$timestamp)
-month(mon.dat$timestamp)
 axis(side=1, at=xtick, labels = FALSE)
 
 ```
@@ -485,17 +506,20 @@ for(i in 1:length(focal.sp))
 
 ## Species-specific maps
 
-Gray circles are stations where there are no detections of that species. Blue circles are stations where that species was detected. The size of the circle increases with the number of independent detections (not including group size).
+Gray circles are stations where there are no detections of that species. Blue circles are stations where that species was detected. The size of the circle increases with the number of independent detections, including group size.
 
 ```{r, eval=T, echo=F, message=FALSE, warning=FALSE}
 
 # get rid of NA counts because they F up the script here
 spatdata<-spatdata[!is.na(spatdata$group_count),]
 species<-unique(spatdata$common_name)
+
 i<-1
 
 for (i in 1:length(species)){
   tmp<-spatdata[spatdata$common_name==species[i],]
+  tmp2<-tmp%>%group_by(common_name, location) %>% summarise(n= sum(group_count))
+  tmp2$n<-as.numeric(tmp2$n)
   
   x=tm_shape(tuyeta) +
     tm_borders() +
@@ -505,12 +529,12 @@ for (i in 1:length(species)){
       inner.margins = c(0.07, 0.03, 0.15, 0.03)) +
     tm_shape(spatdata) +
     tm_symbols(size = 0.2, col="lightgrey") +
-    tm_shape(tmp) +
-    tm_bubbles("group_count",
+    tm_shape(tmp2) +
+    tm_bubbles("n",
                col ='blue',
-               breaks = c(1, 5, 10, max(tmp$group_count)),
+               breaks = c(1, 5, 10, max(tmp$n)),
                size.max = 10,
-               sizes.legend= c(1, 5, 10, if(max(tmp$group_count)>10) max(tmp$group_count))) +
+               sizes.legend= c(1, 5, 10, if(max(tmp2$n)>10) max(tmp2$n))) +
     tm_layout(legend.position = c("right","bottom"))
     
 print(x)
