@@ -406,7 +406,7 @@ M <- cor(tmp)
 corrplot(M, method="color", #col=matrix(col(200)),
          type="upper", order="hclust",
          # addCoef.col = "black", # Add coefficient of correlation
-         tl.col="black", tl.srt=45, tl.cex = 0.5, #Text label color and rotation
+         tl.col="black", tl.srt=45, tl.cex = 0.7, #Text label color and rotation
          # Combine with significance
          # p.mat = p.mat, sig.level = 0.01, insig = "blank",
          # hide correlation coefficient on the principal diagonal
