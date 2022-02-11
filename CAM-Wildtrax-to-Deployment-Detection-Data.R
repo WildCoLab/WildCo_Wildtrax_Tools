@@ -15,7 +15,7 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v6"
+version<-"v7"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
