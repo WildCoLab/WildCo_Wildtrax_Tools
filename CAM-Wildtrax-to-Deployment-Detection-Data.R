@@ -158,12 +158,9 @@ write.csv(deploy_wide, paste0(project,"_CAM_Deployment_Data_", version, ".csv"),
 
 str(data)
 
-names(data)[13]
-names(data)[13]<-"age"
-
 
 lessdata = data %>%
-  select(-project, - organization, -buffer_radius_m, -scientific_name, -daily_weather_station_nm,
+  select(-project, - organization, -buffer_radius_m, -daily_weather_station_nm,
          -daily_weather_station_elevation, -daily_weather_station_distance, -daily_min_temp,
          -daily_max_temp, -daily_mean_temp, -daily_total_rain_mm, -daily_total_snow_cm, -daily_precipitation_mm,
          -daily_snow_on_ground_cm, -hourly_weather_station_nm, -hourly_weather_station_elevation,
@@ -190,6 +187,8 @@ dat <- dat %>%
   arrange(location, date_detected) %>%
   group_by(location, common_name) %>%
   mutate(duration = int_length(lag(date_detected) %--% date_detected) )
+
+str(dat)
 
 # loop that assigns group ID
 dat$Event.ID <- 9999
@@ -238,7 +237,8 @@ class(dat$count)
 as.data.frame(dat[dat$Event.ID == "E1000039",])
 
 events<-dat %>%
-  dplyr::group_by(Event.ID, common_name, age, sex) %>%
+  dplyr::group_by(Event.ID, common_name, scientific_name, species_rank, 
+                  species_class,age_class, sex) %>%
   dplyr::summarise (gc_species = max(groupcount_species, na.rm = T),
                     gc_tag = max(groupcount_tag, na.rm = T),
                     gc_regular = max(count, na.rm = T))
@@ -286,10 +286,10 @@ for ( i in 1: nrow(events2)){
 events2<-events2 %>%
   select (-gc_regular, -gc_species, -gc_estimated, -mistake)
 
-names(events2)[5]
-names(events2)[5]<-"group_count"
-names(events2)[6]
-names(events2)[6]<-"species_count"
+names(events2)[8]
+names(events2)[8]<-"group_count"
+names(events2)[9]
+names(events2)[9]<-"species_count"
 
 
 # Calculate the event length and size 
