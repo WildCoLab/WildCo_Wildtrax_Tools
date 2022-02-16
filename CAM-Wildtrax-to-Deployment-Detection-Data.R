@@ -30,7 +30,7 @@ str(data) # pretty much everything is a character "chr"
 
 
 
-#### 1. Clean data ####
+#### 1. Clean data and save species list ####
 
 data$location<-as.factor(data$location) # tell R location is a factor not a character
 data$field_of_view<-as.factor(data$field_of_view)
@@ -53,6 +53,15 @@ summary(data)
 
 
 data=arrange(data,location,date_detected)
+
+spp <- data %>% 
+  filter(species_rank %in% c("Species", "Subspecies")) %>%
+  select(common_name, scientific_name, species_class) %>%
+  unique() %>%
+  arrange(desc(species_class), common_name) %>%
+  as.data.frame()
+
+write.csv(spp, "Tuyeta_CAM_Species_List.csv", row.names = F)
 
 
 #### 2. Create deployment dataframe using START and END tags ####
