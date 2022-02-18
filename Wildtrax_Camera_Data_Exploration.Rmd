@@ -26,8 +26,9 @@ library(tidyr)
 # spatdata - independent detections joined spatially with lat longs
 
 project<-"Tuyeta"
+independent <- 30 # what threshold did you use (in minutes) for independent detections?
 
-img <- read.csv("../1. Master data/Tuyeta_CAM_Detection_Data_v6.csv", header=T)
+img <- read.csv("../1. Master data/Tuyeta_CAM_Detection_Data_v8.csv", header=T)
 img$species_rank<-as.factor(img$species_rank)
 img$common_name<-as.factor(img$common_name)
 summary(img$species_rank)
@@ -36,12 +37,12 @@ summary(img$common_name)
 dat<-droplevels(img[img$species_rank %in% c("Species","Subspecies"),])
 
 
-eff <- read.csv("../1. Master data/Tuyeta_CAM_Deployment_Data_v6.csv", header=T)
+eff <- read.csv("../1. Master data/Tuyeta_CAM_Deployment_Data_v8.csv", header=T)
 
 sta <- read.csv("../1. Master data/Tuyeta_Station_Covariates.csv", header=T)
 str(sta)
 
-ind.dat <- read.csv("../1. Master data/Tuyeta_CAM_Independent_Detections_v6.csv", header=T)
+ind.dat <- read.csv("../1. Master data/Tuyeta_CAM_Independent_Detections_v8.csv", header=T)
 str(ind.dat)
 unique(dat$common_name)
 ind.dat<-droplevels(ind.dat[ind.dat$common_name %in% unique(dat$common_name),])
@@ -62,11 +63,8 @@ spatdata$location<-as.factor(spatdata$location)
 # Timezone [Use UTC if your cameras do not correct for daylight saving time, if they do use the timezone where the data was collected]
 tz <- "UTC"
 
-# Set the "independence" interval in minutes
-independent <- 30
-
 # Set a single categorical variable of interest from station covariates for summary graphs. If you do not have and appropriate category use "Project.ID".
-category <- "Project.ID"
+category <- "project"
 
 # Define a colour from the R options to base the colourscheme
 colour <- "lightseagreen"
@@ -80,10 +78,10 @@ colour <- "lightseagreen"
  
 # 2) All dates must be in YYYY-MM-DD in 'eff' and YYYY-MM-DD HH:MM:SS in 'dat' 
 # If the following return NA, change your formatting
-strptime(eff$Camera.Deployment.Begin.Date[1], "%Y-%m-%d", tz="UTC")
+strptime(eff$deployment_begin_date[1], "%Y-%m-%d", tz="UTC")
 strptime(dat$date_detected[1], "%Y-%m-%d %H:%M:%S", tz="UTC")
 
-# 3) the dates in 'eff$Camera.Deployment.End.Date' must be the when the camera fails, not when you check the camera. If the camera fails (due to damage or full sd card), use the last day it functions here.  
+# 3) the dates in 'eff$deployment_end_date' must be the when the camera fails, not when you check the camera. If the camera fails (due to damage or full sd card), use the last day it functions here.  
 
 # 4) Ensure your species names are consistent - check in the list below
 table(dat$common_name)
@@ -93,7 +91,7 @@ is.numeric(dat$count)
 
 # 6) ensure all deployment dates are before retrieval dates for each deployment
 # Logic = are the stations active for 0 or more days -> all should read TRUE
-table((strptime(eff$Camera.Deployment.End.Date, "%Y-%m-%d", tz="UTC")-strptime(eff$Camera.Deployment.Begin.Date, "%Y-%m-%d", tz="UTC"))>=0)
+table((strptime(eff$deployment_end_date, "%Y-%m-%d", tz="UTC")-strptime(eff$deployment_begin_date, "%Y-%m-%d", tz="UTC"))>=0)
 
 # 7) Do you have lat/long data for all of your sites you have effort data for? If yes, the value should be 0
 length(setdiff(eff$location, sta$location))
@@ -107,10 +105,10 @@ length(setdiff(eff$location, sta$location))
 
 
 # Prepare dates
-eff$Camera.Deployment.Begin.Date <- as.POSIXct(strptime(eff$Camera.Deployment.Begin.Date, "%Y-%m-%d", tz ))
-eff$Camera.Deployment.End.Date <- as.POSIXct(strptime(eff$Camera.Deployment.End.Date, "%Y-%m-%d", tz ))
+eff$deployment_begin_date <- as.POSIXct(strptime(eff$deployment_begin_date, "%Y-%m-%d", tz ))
+eff$deployment_end_date <- as.POSIXct(strptime(eff$deployment_end_date, "%Y-%m-%d", tz ))
 
-eff$Days <- as.numeric(round(difftime(eff$Camera.Deployment.End.Date, eff$Camera.Deployment.Begin.Date, units="days"),1))
+eff$Days <- as.numeric(round(difftime(eff$deployment_end_date, eff$deployment_begin_date, units="days"),1))
 
 dat$date_detected <- as.POSIXct(strptime(dat$date_detected, "%Y-%m-%d %H:%M:%S", tz ))
 
@@ -176,7 +174,7 @@ The `r n.stat` stations have resulted in a total of `r as.character(round(sum(ef
 
 # Adjust layout
 par(mar=c(2,6,1,1))
-plot(c(min(eff$Camera.Deployment.Begin.Date, na.rm=T), max(eff$Camera.Deployment.End.Date, na.rm=T)), c(1,n.stat), las=1, ylab="", xlab="", type="n", yaxt="n")
+plot(c(min(eff$deployment_begin_date, na.rm=T), max(eff$deployment_end_date, na.rm=T)), c(1,n.stat), las=1, ylab="", xlab="", type="n", yaxt="n")
 
 # Have the first station plot at the top 
 plot.order <- rev(unique(eff$location))
@@ -190,8 +188,8 @@ for(i in 1:length(plot.order))
   tmp <- eff[eff$location==plot.order[i],]
   for(j in 1:nrow(tmp))
     {
-      lines(c(tmp$Camera.Deployment.Begin.Date[j],
-                       tmp$Camera.Deployment.End.Date[j]),
+      lines(c(tmp$deployment_begin_date[j],
+                       tmp$deployment_end_date[j]),
             c(i,i), lwd=2)
     }
   
@@ -252,7 +250,7 @@ for(j in 1:length(unique(eff$Plot.grp)))
     layout(matrix(c(1,1,1,2), 1, 4, byrow = TRUE))
     par(mar=c(2,8,1,1))
     
-    plot(c(min(eff$Camera.Deployment.Begin.Date, na.rm=T), max(eff$Camera.Deployment.End.Date, na.rm=T)),      c(1,length(unique(eff$location[eff$Plot.grp==j]))), las=1, ylab="", xlab="", type="n", yaxt="n")
+    plot(c(min(eff$deployment_begin_date, na.rm=T), max(eff$deployment_end_date, na.rm=T)),      c(1,length(unique(eff$location[eff$Plot.grp==j]))), las=1, ylab="", xlab="", type="n", yaxt="n")
     
     axis(2, at= 1:length(unique(eff$location[eff$Plot.grp==j])), labels= unique(eff$location[eff$Plot.grp==j]), las=1, cex.axis=1)
     # Make lines for each of the cameras
@@ -267,8 +265,8 @@ for(j in 1:length(unique(eff$Plot.grp)))
     
       for(k in 1:nrow(tmp))
         {
-          lines(c(tmp$Camera.Deployment.Begin.Date[k],
-                           tmp$Camera.Deployment.End.Date[k]),
+          lines(c(tmp$deployment_begin_date[k],
+                           tmp$deployment_end_date[k]),
                 c(i,i), lwd=2)
         }
       }
@@ -351,8 +349,8 @@ legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
 
 str(ind.dat)
 
-b<-ind.dat %>% group_by(common_name, age) %>% summarise(n = sum(group_count))
-d<-t(spread(b, age, n))
+b<-ind.dat %>% group_by(common_name, age_class) %>% summarise(n = sum(group_count))
+d<-t(spread(b, age_class, n))
 e<-as.data.frame(d[2:4,])
 names(e)<-d[1,]
 e[is.na(e)]<-0
@@ -365,8 +363,8 @@ for (i in 1: ncol(e)){
 }
 
 
-dat[,"age"] <- factor(dat[,"age"])
-cols <- wheel("lightseagreen", num = length(levels(dat[,"age"])))
+dat[,"age_class"] <- factor(dat[,"age_class"])
+cols <- wheel("lightseagreen", num = length(levels(dat[,"age_class"])))
 
 
 data_percentage <- apply(tmp, 2, function(x){x*100/sum(x,na.rm=T)})
@@ -386,10 +384,16 @@ legend("topleft", legend=row.names(tmp), fill=cols, xpd=TRUE, cex=1.1 )
 ## Group size distribution
 
 ```{r group size, echo=F, eval=T,fig.height=sp.height}
+
+ind.dat2<-ind.dat %>%
+  group_by(event_id, common_name) %>%
+  summarise(gc = sum(group_count))
+
+
 par(mfrow=c(1,1))
 par(mar=c(5,10,1,1))
-plot(jitter(as.numeric(as.factor(ind.dat$common_name)))~jitter(as.numeric(ind.dat$species_count)), xlab="Minimum group size", yaxt="n", las=1, ylab="")
-axis(2, 1:length(unique(ind.dat$common_name)), labels=levels(as.factor(ind.dat$common_name)), las=2, cex.axis=0.6)
+plot(jitter(as.numeric(as.factor(ind.dat2$common_name)))~jitter(as.numeric(ind.dat2$gc)), xlab="Minimum group size", yaxt="n", las=1, ylab="")
+axis(2, 1:length(unique(ind.dat2$common_name)), labels=levels(as.factor(ind.dat2$common_name)), las=2, cex.axis=0.6)
 
 ```
 
@@ -431,13 +435,13 @@ focal.sp <- focal.sp[focal.sp!=""]
 # We need to know how many detections there are in each month -> create a row lookup
 # This is just a list of every day a camera was active.
 
-tmp <- eff[is.na(eff$Camera.Deployment.End.Date)==F,]
+tmp <- eff[is.na(eff$deployment_end_date)==F,]
 daily.lookup <- list()
 for(i in 1:nrow(tmp))
 {
-  if(as.Date(tmp$Camera.Deployment.Begin.Date[i])!=as.Date(tmp$Camera.Deployment.End.Date[i]))
+  if(as.Date(tmp$deployment_begin_date[i])!=as.Date(tmp$deployment_end_date[i]))
   {
-    daily.lookup[[i]] <- data.frame("Date"=seq(as.Date(tmp$Camera.Deployment.Begin.Date[i])+1, as.Date(tmp$Camera.Deployment.End.Date[i]), by="days"), "location"=tmp$location[i])
+    daily.lookup[[i]] <- data.frame("Date"=seq(as.Date(tmp$deployment_begin_date[i])+1, as.Date(tmp$deployment_end_date[i]), by="days"), "location"=tmp$location[i])
   }
 }
 row.lookup <- do.call(rbind, daily.lookup)
