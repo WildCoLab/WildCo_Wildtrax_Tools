@@ -1,4 +1,4 @@
-# Data massaging
+# Wildco Wildtrax Tools
 These scripts clean Wildtrax output, then summarise the data into deployment histories and independent detections.
 
 ### Tuyeta_example_data.csv
