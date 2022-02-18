@@ -15,7 +15,7 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v7"
+version<-"v8"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
@@ -61,7 +61,7 @@ spp <- data %>%
   arrange(desc(species_class), common_name) %>%
   as.data.frame()
 
-write.csv(spp, "Tuyeta_CAM_Species_List.csv", row.names = F)
+write.csv(spp, paste0(project, "_CAM_Species_List_", version, ".csv" ), row.names = F)
 
 
 #### 2. Create deployment dataframe using START and END tags ####
@@ -149,13 +149,13 @@ deploy_wide=deploy_full%>%
   as.data.frame()
 
 str(deploy_wide)
-deploy_wide$Camera.Failure.Details<-rep(NA,nrow(deploy_wide))
-# change variable names to standardized
-names(deploy_wide)<- c("Project.ID",	"location",
-                       "Camera.Deployment.Begin.Date",	"Camera.Deployment.End.Date",
-                       "Deployment.ID",	"Camera.Failure.Details")
 
-deploy_wide = deploy_wide %>% mutate(duration = Camera.Deployment.End.Date - Camera.Deployment.Begin.Date)
+# change variable names to standardized
+names(deploy_wide)<- c("project",	"location",
+                       "deployment_begin_date",	"deployment_end_date",
+                       "deployment_id")
+
+deploy_wide = deploy_wide %>% mutate(duration = deployment_end_date - deployment_begin_date)
 class(deploy_wide$duration)
 
 write.csv(deploy_wide, paste0(project,"_CAM_Deployment_Data_", version, ".csv"),row.names = F)
@@ -167,6 +167,8 @@ write.csv(deploy_wide, paste0(project,"_CAM_Deployment_Data_", version, ".csv"),
 
 str(data)
 
+# there's a lot of stuff coming out of Wildtrax that I don't want
+# Choose below which variables to remove:
 
 lessdata = data %>%
   select(-project, - organization, -buffer_radius_m, -daily_weather_station_nm,
@@ -200,12 +202,12 @@ dat <- dat %>%
 str(dat)
 
 # loop that assigns group ID
-dat$Event.ID <- 9999
+dat$event_id <- 9999
 mins <- independent
 seq <- as.numeric(paste0(nrow(dat),0))
 seq <- round(seq,-(nchar(seq)))
 for (i in 2:nrow(dat)) {
-  dat$Event.ID[i-1]  <- paste0("E",format(seq, scientific = F))
+  dat$event_id[i-1]  <- paste0("E",format(seq, scientific = F))
   if(is.na(dat$duration[i]) | abs(dat$duration[i]) > (mins * 60)){
     seq <- seq + 1
   }
@@ -215,9 +217,9 @@ for (i in 2:nrow(dat)) {
 # group ID  for the last row
 if(dat$duration[nrow(dat)] < (mins * 60)|
    is.na(dat$duration[nrow(dat)])){
-  dat$Event.ID[nrow(dat)] <- dat$Event.ID[nrow(dat)-1]
+  dat$event_id[nrow(dat)] <- dat$event_id[nrow(dat)-1]
 } else{
-  dat$Event.ID[nrow(dat)] <- paste0("E",format(seq+1, scientific = F))
+  dat$event_id[nrow(dat)] <- paste0("E",format(seq+1, scientific = F))
 }
 
 
@@ -230,96 +232,54 @@ tendpos[is.na(tendpos)]<-2
 dat$groupcount_tag<- str_sub(tmptag,start = 1, end = tendpos-1)
 
 
-# Minimum group size by species, regardless of age and sex
-
-pos<-str_locate(dat$image_comments, "group count = ")[,2]
-tmp=str_sub(dat$image_comments, start = pos+1, end = pos+3)
-
-endpos=str_locate(tmp,"\\D")[,2]
-endpos[is.na(endpos)]<-2
-dat$groupcount_species <-str_sub(tmp,start = 1, end = endpos-1)
-
-
 # Now collapse the thing into independent events
-class(dat$count)
+class(dat$count) # should be numeric
 
-as.data.frame(dat[dat$Event.ID == "E1000039",])
 
 events<-dat %>%
-  dplyr::group_by(Event.ID, common_name, scientific_name, species_rank, 
+  # first group by event and the other variables we want to keep
+  dplyr::group_by(event_id, common_name, scientific_name, species_rank, 
                   species_class,age_class, sex) %>%
-  dplyr::summarise (gc_species = max(groupcount_species, na.rm = T),
-                    gc_tag = max(groupcount_tag, na.rm = T),
+  # then take group count as the max of the comments gc# count (gc_tag)
+  # and seperately, as the max of the individual image count (gc_regular)
+  dplyr::summarise (gc_tag = max(groupcount_tag, na.rm = T),
                     gc_regular = max(count, na.rm = T))
+# replace impossible values with NAs
 events$gc_regular[events$gc_regular == -Inf]<-NA
 
 for (i in 1: nrow(events)){
-  if (is.na(events$gc_tag [i])){
-    events$gc_tag[i] <- events$gc_regular[i]
+  if (is.na(events$gc_tag [i])){ # where there was no tag comment
+    events$gc_tag[i] <- events$gc_regular[i] # fill in group count from gc_regular
   }
 }
+
 events$gc_tag<-as.numeric(events$gc_tag)
 
-species_only<- events %>%
-  group_by(Event.ID, common_name) %>%
-  summarise(gc_estimated = sum(gc_tag, na.rm = T))
 
-events2<-merge(events, species_only, by = c("Event.ID","common_name"),all.y=T)
-
-events2 = events2 %>% mutate(mistake = events2$gc_estimated > events2$gc_species)
-
-
-for (i in 1: nrow(events2)){
-  if (is.na(events2$gc_species [i])){
-    events2$gc_species[i] <- events2$gc_estimated[i]
-  }
-}
-
-
-# look at potential mistakes
-# note that just because gc_estimated is bigger than gc_species
-# that doesn't mean that there is necessarily a mistake
-# because gc_species comes from the comments based on 5 minute threshold
-# and gc_estimated comes from the 30 minute threshold
-
-mistakes.groupcount <- events2[events2$mistake == T & !is.na(events2$mistake),]
-
-write.csv(mistakes.groupcount,paste0(project, "_mistakes_groupcount_",version,".csv"))
-
-events2$gc_sp_final<-rep(NA, nrow(events2))
-
-for ( i in 1: nrow(events2)){
-  events2$gc_sp_final[i] <- max(events2$gc_estimated[i], events2$gc_species[i])
-}
-
-events2<-events2 %>%
-  select (-gc_regular, -gc_species, -gc_estimated, -mistake)
-
-names(events2)[8]
-names(events2)[8]<-"group_count"
-names(events2)[9]
-names(events2)[9]<-"species_count"
+names(events)[8]
+names(events)[8]<-"group_count"
+events <- select(events, -gc_regular) # remove the now redundant group count column
 
 
 # Calculate the event length and size 
 
 # find out the last and the first of the time in the group
-top <- dat %>% group_by(Event.ID) %>% top_n(1,date_detected) %>% select(Event.ID, date_detected)
-bot <- dat %>% group_by(Event.ID) %>% top_n(-1,date_detected) %>% select(Event.ID, date_detected)
+top <- dat %>% group_by(event_id) %>% top_n(1,date_detected) %>% select(event_id, date_detected)
+bot <- dat %>% group_by(event_id) %>% top_n(-1,date_detected) %>% select(event_id, date_detected)
 names(bot)[2] <- c("date_detected_end")
-dec_no <- dat %>% group_by(location, Event.ID) %>% summarise(n())
+dec_no <- dat %>% group_by(location, event_id) %>% summarise(n())
 names(dec_no)[3]<-"number_images"
 
 # calculate the duration
-diff <-  top %>% left_join(bot, by="Event.ID") %>%
+diff <-  top %>% left_join(bot, by="event_id") %>%
   mutate(duration=abs(int_length(date_detected %--% date_detected_end))) %>%
-  left_join(dec_no, by="Event.ID")
+  left_join(dec_no, by="event_id")
 
 # Remove duplicates
 diff <- diff[duplicated(diff)==FALSE,]
 
 # Merge the data
-independent_data <-  merge(diff, events2, by = "Event.ID", all.y = T)
+independent_data <-  merge(diff, events, by = "event_id", all.y = T)
 str(independent_data)
 
 
