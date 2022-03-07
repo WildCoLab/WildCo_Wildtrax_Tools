@@ -5,7 +5,15 @@ These scripts clean Wildtrax output, then summarise the data into deployment his
 This is an example camera trap dataset, with 6 stations of data, from T'sudé Niliné Tuyeta Indigenous Protected Area.
 
 ### Wildtrax_ARU_to_Standardized.R
-This script summarizes Wildtrax ARU output into maximum species counts per stations... it is still under development!
+This script summarizes Wildtrax ARU output. It saves four data frames: 
+1. Species List : common names, scientific names, and species class of all the species detected
+2. Deployment Data: time, date, and duration of all recordings transcribed at each station
+3. Detection Data: Just the raw data downloads, but with irrelevant columns removed (you can choose which ones you consider irrelevant)
+4. Independent Detections: Raw detection data, summarized into max group counts by year at each station. This includes abundance estimation for "Too Many to Count" situations, which is pulled from the species comments.
+
+### Wildtrax_ARU_Data_Exploration.Rmd
+
+This one is still under construction
 
 ### Wildtrax_Camera_to_Standardized.R
 This script summarizes Wildtrax camera output. It saves four data frames:
