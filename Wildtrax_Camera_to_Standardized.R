@@ -2,6 +2,15 @@
 # and create a deployment spreadsheet, pull group count from the comments, 
 # and create an independent detections spreadsheet
 
+# This script takes raw detection data from Wildtrax data download
+# and it saves four data frames
+
+# -1- Project_CAM_Species_List_v#.csv : A basic species list
+# -2- Project_CAM_Deployment_Data_v#.csv :  Deployment information with start date, end date, and duration (effort)
+# -3- Project_CAM_Detection_Data_v#.csv : Detection data. Just the raw detection data, but a bit cleaned
+# -4- Project_CAM_Independent_Detections_v#.csv : Independent detections, summarized with group count, based on a time threshold you specify
+
+
 # Created by Laura Nicole Stewart
 # And Chris Beirne
 # laura.nicole.stewart@gmail.com 
