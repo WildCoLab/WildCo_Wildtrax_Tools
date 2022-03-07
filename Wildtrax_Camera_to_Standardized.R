@@ -1,3 +1,5 @@
+#### Intro ####
+
 # This script is to make Wildtrax camera data output cleaner
 # and create a deployment spreadsheet, pull group count from the comments, 
 # and create an independent detections spreadsheet
