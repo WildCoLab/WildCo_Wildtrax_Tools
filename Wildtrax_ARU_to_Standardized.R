@@ -1,10 +1,6 @@
 # This script is to make Wildtrax ARU data output cleaner
 
 
-# TO DO with this one
-# independent detections per station
-# deployment data
-
 # This script takes raw detection data from Wildtrax data download
 # and it saves four data frames
 
@@ -12,8 +8,6 @@
 # -2- Project_ARU_Deployment_Data_v#.csv :  Deployment information with start date, end date, and duration (effort)
 # -3- Project_ARU_Detection_Data_v#.csv : Detection data. Just the raw detection data, but a bit cleaned
 # -4- Project_ARU_Independent_Detections_v#.csv : Independent detections, summarized with group count, based on a time threshold you specify
-
-
 
 
 # Created by Laura Nicole Stewart
@@ -38,7 +32,8 @@ setwd("C:/Users/laura/Documents/Wildco/3. Data and scripts/1. Master data")
 
 #### 1. Load, clean, and merge detection data ####
 
-cov<-read.csv("Tuyeta_Station_Covariates.csv")
+# Load station covariates
+cov<-read.csv("Tuyeta_Station_Covariates_v3.csv")
 latlongs<-cov[,c("location","latitude","longitude")]
 head(latlongs)
 
@@ -113,7 +108,7 @@ eff$recording_begin<-paste(eff$recording_date, eff$recording_time)
 strptime(eff$recording_begin[1], "%Y-%m-%d %H:%M:%S", tz="UTC")
 eff$recording_begin<-as.POSIXct(strptime(eff$recording_begin, "%Y-%m-%d %H:%M:%S", tz="UTC"))
 
-write.csv(eff, paste0(project,"_CAM_Deployment_Data_", version, ".csv"), row.names = F)
+write.csv(eff, paste0(project,"_ARU_Deployment_Data_", version, ".csv"), row.names = F)
 
 
 
@@ -160,9 +155,6 @@ birddata2$abundance <- factor(birddata2$abundance, ordered = T)
 summary(birddata2$abundance) 
 max(birddata2$abundance) # TMTC is the highest position
 
-
-
-
 bird.ind=birddata2 %>%
   filter(species_class != "AMPHIBIA") %>%
   arrange(location, recording_date, recording_time) %>%
@@ -197,7 +189,7 @@ sppfull<-birddata2 %>%
 
 ind2<-merge(ind,sppfull)
 ind2 = arrange(ind2,location,species_english_name)
-ind2 = select(ind2,2,1,2,3,5,6,7)
+ind2 = select(ind2,2,1,3,4,5,6,7)
 
 head(ind2)
 
