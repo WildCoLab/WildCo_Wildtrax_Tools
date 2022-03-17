@@ -4,6 +4,10 @@
 # This script takes raw detection data from Wildtrax data download
 # and it saves four data frames
 
+# IMPORTANT!
+# This script removes all species detections unless they are marked
+# as "Confident" or "Confirmed"
+
 # -1- Project_ARU_Species_List_v#.csv : A basic species list
 # -2- Project_ARU_Deployment_Data_v#.csv :  Deployment information with start date, end date, and duration (effort)
 # -3- Project_ARU_Detection_Data_v#.csv : Detection data. Just the raw detection data, but a bit cleaned
@@ -62,7 +66,7 @@ birddata$latitude<-as.numeric(birddata$latitude)
 summary(birddata$latitude)
 # check for stations that have no lat long:
 summary(as.factor(birddata[is.na(birddata$latitude),"location"]))
-# this is because BMS-MMO-032-28 is the wron location name :eyeroll:
+# this is because BMS-MMO-032-28 is the wrong location name :eyeroll:
 
 # get rid of columns that we don't need
 birddata2=birddata%>%
@@ -78,7 +82,12 @@ birddata2=birddata%>%
 
 birddata2[birddata2 == " "] <- NA
 
-write.csv(birddata2,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
+birddata3=birddata2[birddata2$confidence %in% c("Confident", "Confirmed"),]
+
+write.csv(birddata3,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
+
+tobechecked<-birddata2[birddata2$confidence == "To Be Checked",]
+write.csv(tobechecked, paste0(project,"_ARU_records_to_be_checked_",version,".csv"), row.names = F)
 
 #### 2. Species List ####
 
