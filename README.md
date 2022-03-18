@@ -13,7 +13,7 @@ This script summarizes Wildtrax ARU output. It saves four data frames:
 
 ### Wildtrax_ARU_Data_Exploration.Rmd
 
-This one is still under construction
+Some basic maps and summaries, similar to the Camera_Data_Exploration.
 
 ### Wildtrax_Camera_to_Standardized.R
 This script summarizes Wildtrax camera output. It saves four data frames:
