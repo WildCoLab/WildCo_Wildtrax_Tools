@@ -150,16 +150,11 @@ for(i in 1:length(plot.order))
 
 
 
-
-
-
-
-
 ## Species-specific maps
 
 Gray circles are stations where there are no detections of that species. Blue circles are stations where that species was detected. The size of the circle increases with the number of independent detections, including group size.
 
-```{r, eval=T, echo=F, message=FALSE, warning=FALSE}
+```{r eval=T, echo=F, message=FALSE, warning=FALSE}
 
 # get rid of NA counts because they F up the script here
 spatdata<-spatdata[!is.na(spatdata$abundance),]
@@ -167,7 +162,6 @@ species<-unique(ind$species_english_name)
 
 
 i<-1
-species[i]
 for (i in 1:length(species)){
   tmp<-spatdata[spatdata$species_english_name==species[i],]
   tmp2<-tmp%>%group_by(species_english_name, location) %>% summarise(n= sum(abundance))
