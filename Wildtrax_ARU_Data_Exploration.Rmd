@@ -1,0 +1,196 @@
+```{r setup and tests, include=FALSE}
+
+## README FIRST ##
+#Read and run this chunk of code line by line in the R Console (do not press knit) - there are some questions below which you will have to answer and some logic tests to complete. Once you are happy that the conditions have been satisfied, hit 'knit' above. 
+
+# Load required packages
+
+library(leaflet)
+library(dplyr)
+library(colortools)
+library(corrplot)
+library(lubridate)
+library(sf)
+library(tmap)
+library(stringr)
+library(tidyr)
+
+
+# Load your data [change the files paths to your data locations]
+# eff - recordings transcribed (effort)
+# sta - station covariates
+# dat - detection data 
+# ind - independent detection data
+# tuyeta - shapefile outline of the study area
+# spatdata - independent detections joined spatially with lat longs
+
+project<-"Tuyeta"
+
+# Timezone [Use UTC if your ARUs do not correct for daylight saving time, if they do use the timezone where the data was collected]
+tz <- "UTC"
+
+category <- "project" # for summary graphs
+colour <- "lightseagreen" # Define a colour from the R options to base the colourscheme
+
+eff <- read.csv("../1. Master Data/Tuyeta_ARU_Deployment_Data_v4.csv")
+
+sta <- read.csv("../1. Master Data/Tuyeta_Station_Covariates_v3.csv")
+sta<-droplevels(sta[sta$location %in% eff$location,]) #keep only the stations with ARU data
+
+dat <- read.csv("../1. Master Data/Tuyeta_ARU_Detection_Data_v4.csv")
+
+ind <- read.csv("../1. Master Data/Tuyeta_ARU_Independent_Detections_v4.csv")
+str(ind)
+
+tuyeta <- st_read("C:/Users/laura/Documents/Wildco/5. Spatial/Tuyeta/Tuyeta_boundary/Tuyeta.shp")
+tuyeta <- st_transform(tuyeta, crs = 3580)
+
+spatdata=st_read("../1. Master data/Tuyeta_Station_Covariates_v3.csv",
+        options=c("X_POSSIBLE_NAMES=longitude","Y_POSSIBLE_NAMES=latitude"))
+
+spatdata<- merge(spatdata, ind, by = "location")
+
+```
+
+```{r non-adjustable options, echo=F, include=F}
+
+
+# Prepare dates
+eff$recording_begin <- as.POSIXct(strptime(eff$recording_begin, "%Y-%m-%d", tz ))
+
+# Count the number of ARU stations
+n.stat <- length(unique(eff$location))
+n.stat
+
+# Generate colours to display the category levels - R needs them as a factor
+sta$project <- as.factor(sta$project)
+col.cat <- wheel(colour, num = length(levels(sta[,"project"])))
+sta$Cols <- col.cat[sta[,"project"]]
+
+# How big should the figures be
+eff.height <- 8
+if(length(unique(eff$location))>80)
+   {
+     eff.height <- length(unique(eff$location))/10
+   }
+
+sp.height <- 7
+if(length(unique(ind$species_english_name))>20)
+   {
+     sp.height <- 7+(length(unique(ind$species_english_name))/8)
+   }
+
+
+```
+
+
+# `r project` Project
+
+### ARU locations
+
+To date there have been ARU deployments at `r n.stat` unique locations.
+
+```{r map, echo=F}
+
+m <- leaflet() %>%
+  addProviderTiles(providers$Esri.WorldImagery, group="Satellite") %>%  # Add satellite data
+  addProviderTiles(providers$Esri.WorldTopoMap, group="Base") %>%     
+  addCircleMarkers(lng=sta$longitude, lat=sta$latitude,
+                   color=sta$Cols,
+                   popup=paste(sta$location, sta[,"project"])) %>%
+ addLegend("bottomleft", colors = col.cat,  labels = levels(sta[,"project"]),
+    title = category,
+    labFormat = labelFormat(prefix = "$"),
+    opacity = 1
+  ) %>%
+  # Layers control
+  addLayersControl(
+    baseGroups = c("Satellite", "Base"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+m
+
+
+```
+
+
+
+### ARU activity through time
+
+The `r n.stat` stations have resulted in a total of  `r nrow(eff)` recordings (mean = `r round(nrow(eff)/n.stat)` recordings per station; min = `r eff %>% group_by(location) %>% summarise(n=n()) %>% summarise(min(n)) %>% unname()`; max = `r eff %>% group_by(location) %>% summarise(n=n()) %>% summarise(max(n)) %>% unname()`).The daily break down of ARU activity is as follows:
+
+```{r activity, echo=F, fig.height=eff.height}
+
+# Adjust layout
+par(mar=c(2,6,1,1))
+plot(c(min(eff$recording_begin, na.rm=T), max(eff$recording_begin, na.rm=T)),
+     c(1,n.stat), las=1, ylab="", xlab="", type="n", yaxt="n")
+
+# Have the first station plot at the top 
+plot.order <- rev(unique(eff$location))
+
+
+
+axis(2, at= 1:n.stat, labels= plot.order, las=1, cex.axis=0.4)
+
+for(i in 1:length(plot.order))
+{
+  abline(h=i, col=rgb(0,0,0,0.1))
+  tmp <- eff[eff$location==plot.order[i],]
+  for(j in 1:nrow(tmp))
+  {
+    points(tmp$recording_begin[j],
+          i, lwd=2, pch = 19, cex = 0.8)
+  }
+  
+}
+
+
+```
+
+
+
+
+
+
+
+
+## Species-specific maps
+
+Gray circles are stations where there are no detections of that species. Blue circles are stations where that species was detected. The size of the circle increases with the number of independent detections, including group size.
+
+```{r, eval=T, echo=F, message=FALSE, warning=FALSE}
+
+# get rid of NA counts because they F up the script here
+spatdata<-spatdata[!is.na(spatdata$abundance),]
+species<-unique(ind$species_english_name)
+
+
+i<-1
+species[i]
+for (i in 1:length(species)){
+  tmp<-spatdata[spatdata$species_english_name==species[i],]
+  tmp2<-tmp%>%group_by(species_english_name, location) %>% summarise(n= sum(abundance))
+  tmp2$n<-as.numeric(tmp2$n)
+  
+  x=tm_shape(tuyeta) +
+    tm_borders() +
+    tm_layout(
+      title = species[i],
+      title.position = c("center", "top"),
+      inner.margins = c(0.07, 0.03, 0.15, 0.03)) +
+    tm_shape(spatdata) +
+    tm_symbols(size = 0.2, col="lightgrey") +
+    tm_shape(tmp2) +
+    tm_bubbles("n",
+               col ='blue',
+               breaks = c(1, 5, 10, max(tmp$n)),
+               size.max = 10,
+               sizes.legend= c(1, 5, 10, if(max(tmp2$n)>10) max(tmp2$n))) +
+    tm_layout(legend.title.size= 0.1, legend.position = c("right","bottom"))
+    
+print(x)
+
+}
+
+```
