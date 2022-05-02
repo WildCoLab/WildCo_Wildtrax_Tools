@@ -26,14 +26,14 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v8"
+version<-"v10"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
 
 setwd("C:/Users/laura/Documents/Wildco/3. Data and scripts/1. Master data")
 
-data<-read.csv("../4. Raw data downloads/NWTBM_Tuyeta_Biodiversity_Project_report.csv")
+data<-read.csv("../4. Raw data downloads/NWTBM_Tuyeta_Biodiversity_Project_2020_report.csv")
 
 head(data) 
 tail(data) # the way this is ordered makes no sense to me but it doesn't really matter
@@ -62,6 +62,9 @@ data$date_detected = as.POSIXct(data$date_detected, tz = "MST")
 str(data)
 summary(data)
 
+data$common_name <- str_to_title(data$common_name)
+unique(data$common_name)
+data[data$common_name == "Beaver","common_name"] <- "American Beaver"
 
 data=arrange(data,location,date_detected)
 
@@ -199,7 +202,7 @@ write.csv(lessdata, paste0(project, "_CAM_Detection_Data_", version,".csv" ), ro
 #### 4. Independent detections and group count ####
 
 # Remove observations without animals detected
-dat <- lessdata[lessdata$common_name!="NONE",]
+dat <- lessdata[lessdata$common_name!="None",]
 
 # Order the dataframe by location, date
 dat <- dat[order(dat$location, dat$date_detected),]
