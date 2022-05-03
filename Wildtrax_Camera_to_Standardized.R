@@ -45,7 +45,6 @@ str(data) # pretty much everything is a character "chr"
 
 data$location<-as.factor(data$location) # tell R location is a factor not a character
 data$field_of_view<-as.factor(data$field_of_view)
-data$common_name<-as.factor(data$common_name)
 data$age_class<-as.factor(data$age_class)
 data$sex<-as.factor(data$sex)
 data$count<-as.numeric(data$number_individuals) # as NUMERIC this time
@@ -62,9 +61,18 @@ data$date_detected = as.POSIXct(data$date_detected, tz = "MST")
 str(data)
 summary(data)
 
-data$common_name <- str_to_title(data$common_name)
+#data$common_name <- str_to_title(data$common_name)
+#str_to_sentence(data$common_name)
+
 unique(data$common_name)
 data[data$common_name == "Beaver","common_name"] <- "American Beaver"
+data[data$common_name == "Red fox","common_name"] <- "Red Fox"
+data[data$common_name == "Northern goshawk","common_name"] <- "Northern Goshawk"
+data[data$common_name == "Northern harrier","common_name"] <- "Northern Harrier"
+data[data$common_name == "Grizzly bear","common_name"] <- "Grizzly Bear"
+
+
+data$common_name<-as.factor(data$common_name)
 
 data=arrange(data,location,date_detected)
 
@@ -202,7 +210,7 @@ write.csv(lessdata, paste0(project, "_CAM_Detection_Data_", version,".csv" ), ro
 #### 4. Independent detections and group count ####
 
 # Remove observations without animals detected
-dat <- lessdata[lessdata$common_name!="None",]
+dat <- lessdata[lessdata$common_name!="NONE",]
 
 # Order the dataframe by location, date
 dat <- dat[order(dat$location, dat$date_detected),]
