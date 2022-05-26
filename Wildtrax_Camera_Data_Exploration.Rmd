@@ -28,7 +28,7 @@ library(tidyr)
 project<-"Tuyeta"
 independent <- 30 # what threshold did you use (in minutes) for independent detections?
 
-img <- read.csv("../1. Master data/Tuyeta_CAM_Detection_Data_v8.csv", header=T)
+img <- read.csv("../1. Master data/Tuyeta_CAM_Detection_Data_v10.csv", header=T)
 img$species_rank<-as.factor(img$species_rank)
 img$common_name<-as.factor(img$common_name)
 summary(img$species_rank)
@@ -37,12 +37,12 @@ summary(img$common_name)
 dat<-droplevels(img[img$species_rank %in% c("Species","Subspecies"),])
 
 
-eff <- read.csv("../1. Master data/Tuyeta_CAM_Deployment_Data_v8.csv", header=T)
+eff <- read.csv("../1. Master data/Tuyeta_CAM_Deployment_Data_v10.csv", header=T)
 
-sta <- read.csv("../1. Master data/Tuyeta_Station_Covariates.csv", header=T)
+sta <- read.csv("../1. Master data/Tuyeta_Station_Covariates_v4.csv", header=T)
 str(sta)
 
-ind <- read.csv("../1. Master data/Tuyeta_CAM_Independent_Detections_v8.csv", header=T)
+ind <- read.csv("../1. Master data/Tuyeta_CAM_Independent_Detections_v10.csv", header=T)
 str(ind)
 unique(dat$common_name)
 ind<-droplevels(ind[ind$common_name %in% unique(dat$common_name),])
@@ -51,7 +51,7 @@ ind<-droplevels(ind[ind$common_name %in% unique(dat$common_name),])
 tuyeta <- st_read("C:/Users/laura/Documents/Wildco/5. Spatial/Tuyeta/Tuyeta_boundary/Tuyeta.shp")
 tuyeta <- st_transform(tuyeta, crs = 3580)
 
-spatdata=st_read("../1. Master data/Tuyeta_Station_Covariates.csv",
+spatdata=st_read("../1. Master data/Tuyeta_Station_Covariates_v4.csv",
         options=c("X_POSSIBLE_NAMES=longitude","Y_POSSIBLE_NAMES=latitude"))
 
 spatdata<- merge(spatdata, ind, by = "location")
@@ -427,7 +427,7 @@ Across all sites and species:
 
 ```{r calculate monthly data summaries, echo=F, eval=T, include= F}
 # Capture rates through time
-focal.sp <- as.character(det.sum.total[det.sum.total$n>0,]$common_name)
+focal.sp <- as.character(det.sum.total[det.sum.total$n>10,]$common_name)
 focal.sp <- focal.sp[order(focal.sp)]
 # Remove any blanks
 focal.sp <- focal.sp[focal.sp!=""]
@@ -484,7 +484,7 @@ xtick <- as.POSIXct(paste0(year(mon.dat$timestamp), "-", str_pad(month(mon.dat$t
 
 plot(mon.dat$timestamp, mon.dat$Effort, ylab="Monthly Effort (days)", xlab="Date", type="l", las=2)
 points(mon.dat$timestamp, mon.dat$Effort, pch=19, col=rgb(0,0,0,0.4))
-axis(side=1, at=xtick, labels = FALSE )
+axis(side=1, at=xtick, labels = FALSE)
 
 # Overall capture rate
 plot(mon.dat$timestamp, mon.dat$Total.CR, ylab="Monthly total CR per 100 days", xlab="Date", type="l", las=2, ylim=c(0, max(mon.dat$Total.CR)))
@@ -493,9 +493,11 @@ axis(side=1, at=xtick, labels = FALSE)
 
 ```
 
+
+
 ### Species-specific temporal trends
 
-Species level variation in monthly capture rates are as follows:
+Species level variation in monthly capture rates, across all years, are as follows:
 
 ```{r, echo=F, eval=T}
 par(mfrow=c(2,3))
@@ -505,6 +507,30 @@ for(i in 1:length(focal.sp))
   points(mon.dat$timestamp, mon.dat[,as.character(focal.sp)[i]], pch=19, col=rgb(0,0,0,0.4))
   axis(side=1, at=xtick, labels = FALSE )
 }
+
+```
+
+### Species-specific temporal trends, grouped by month
+
+Species level variation in monthly capture rates, with months of all years pooled, are as follows:
+
+```{r make it a barplot instead and group months, echo = F}
+par(mfrow=c(2,3))
+
+monthly <- mon.dat %>% mutate(across(`American Robin`:`Woodland Caribou`, ~.x *Effort/100),
+                   month = month.abb[as.numeric(str_sub(Month, 6:6))]) %>%
+  group_by(month) %>%
+  summarise(effort = sum(Effort), across(`American Robin`:`Woodland Caribou`, ~sum(.x))) %>%
+  mutate(across(`American Robin`:`Woodland Caribou`, ~.x / effort * 100))
+
+monthly$month <- factor(monthly$month, levels = c("Jan","Feb","Mar","Apr","May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+
+monthly<-as.data.frame(monthly)
+
+for ( i in 1: length(focal.sp)){
+  barplot(monthly[,i+2] ~ monthly$month, par(las=2), ylab = "Capture Rate per 100 days", xlab = "month", main = focal.sp[i])
+}
+
 
 ```
 
