@@ -527,8 +527,10 @@ monthly$month <- factor(monthly$month, levels = c("Jan","Feb","Mar","Apr","May",
 
 monthly<-as.data.frame(monthly)
 
+barplot(monthly$effort~monthly$month, par(las=2), ylab = "Effort (days)", xlab = "Month", main = "Overall Effort")
+
 for ( i in 1: length(focal.sp)){
-  barplot(monthly[,i+2] ~ monthly$month, par(las=2), ylab = "Capture Rate per 100 days", xlab = "month", main = focal.sp[i])
+  barplot(monthly[,i+2] ~ monthly$month, par(las=2), ylab = "Capture Rate per 100 days", xlab = "Month", main = focal.sp[i])
 }
 
 
