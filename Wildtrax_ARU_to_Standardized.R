@@ -109,22 +109,24 @@ write.csv(birddata2,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.
 
 #### 2. Species List ####
 
+# Extract non-species tags
+
 speciestrue = str_extract_all(birddata2$species_common_name, pattern = "Unidentified*", simplify = T) != "Unidentified"
 speciestrue2 = str_extract_all(birddata2$species_common_name, pattern = "Light*", simplify = T) != "Light"
 speciestrue3 = str_extract_all(birddata2$species_common_name, pattern = "Moderate*", simplify = T) != "Moderate"
 speciestrue4 = str_extract_all(birddata2$species_common_name, pattern = "Heavy*", simplify = T) != "Heavy"
 summary(speciestrue2)
 
-spp <- birddata2[speciestrue & speciestrue2 & speciestrue3 & speciestrue4, ]
+spp <- birddata2[speciestrue & speciestrue2 & speciestrue3 & speciestrue4, ] # subset
 
-spp2 <- spp %>% 
+spp2 <- spp %>% # take just the species and their associated codes
   select(species_common_name, species_code) %>%
   unique() %>%
   arrange(species_common_name)
 
 spp2
 
-write.csv(spp, paste0(project, "_ARU_Species_List_",version,".csv"), row.names = F )
+write.csv(spp2, paste0(project, "_ARU_Species_List_",version,".csv"), row.names = F )
 
 
 #### 3. Camera effort ####
