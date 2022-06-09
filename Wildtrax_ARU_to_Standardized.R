@@ -4,11 +4,7 @@
 # This script takes raw detection data from Wildtrax data download
 # and it saves four data frames
 
-# IMPORTANT!
-# This script removes all species detections unless they are marked
-# as "Confident" or "Confirmed"
-
-# -1- Project_ARU_Species_List_v#.csv : A basic species list
+# -1- Project_ARU_Species_List_v#.csv : A species list with traits data
 # -2- Project_ARU_Deployment_Data_v#.csv :  Deployment information with start date, end date, and duration (effort)
 # -3- Project_ARU_Detection_Data_v#.csv : Detection data. Just the raw detection data, but a bit cleaned
 # -4- Project_ARU_Independent_Detections_v#.csv : Independent detections, summarized with group count, based on a time threshold you specify
@@ -18,7 +14,7 @@
 # laura.nicole.stewart@gmail.com 
 
 
-##### 0. Set up workspace ####
+##### 0. Set up workspace and load data ####
 
 rm(list=ls())
 
@@ -29,23 +25,25 @@ library(stringr)
 version<-"v5"
 project<-"Tuyeta" # version and project for naming saved csvs
 
-
-setwd("C:/Users/laura/Documents/Wildco/3. Data and scripts/1. Master data")
-
-
-#### 1. Load, clean, and merge detection data ####
+# download the Clements checklist from here and save it in your raw data folder:
+# https://www.birds.cornell.edu/clementschecklist/download/
+birdfam<-read.csv("../4. Raw data downloads/Clements-Checklist-v2021-August-2021.csv")
 
 # Load station covariates
-cov<-read.csv("Tuyeta_Station_Covariates_v4.csv")
+cov<-read.csv("../1. Master data/Tuyeta_Station_Covariates_v4.csv")
 latlongs<-cov[,c("location","latitude","longitude")]
 head(latlongs)
 
-# In my project, the location names are not correct.
-# Need to fix them
-
+# load raw data download(s)
 dat1<-read.csv("../4. Raw data downloads/Tuyeta_BMS_basic_summary.csv")
 dat2<-read.csv("../4. Raw data downloads/Tuyeta_TTEA_basic_summary.csv")
 dat3<-read.csv("../4. Raw data downloads/Tuyeta_TUY_basic_summary.csv")
+
+
+#### 1. Clean, and merge detection data ####
+
+# In my project, the location names are not correct.
+# Need to fix them
 
 head(unique(dat1$location)) # needs left pad 0s cluster and station
 head(unique(dat2$location)) # looks good
@@ -83,57 +81,113 @@ dats$location<-str_c(dats$location_1,dats$location_2,dats$location_3,dats$locati
 head(dats$location)
 tail(dats$location)
 
-# merge with lat longs
+# merge with lat longs, if Wildtrax doesn't have them included already
 dats<-subset(dats, select = -c(latitude, longitude))
 birddata<-merge(latlongs,dats, all.y=T, by = "location")
 birddata$latitude<-as.numeric(birddata$latitude)
 summary(birddata$latitude)
+
 # check for stations that have no lat long:
 summary(as.factor(birddata[is.na(birddata$latitude),"location"]))
-# noice
 
 # get rid of columns that we don't need
 names(birddata)
-
 birddata2=birddata%>%
   select(-project_name,-`ï..organization`,-location_1,-location_2,-location_3,-location_4)
 
+# turn empty comments into NAs
 birddata2[birddata2 == " "] <- NA
 
 birddata2$is_verified <- as.factor(birddata2$is_verified)
 summary(birddata2$is_verified) # okie dokie, don't know what the deal is there
 # probably need to verify species IDs straight on Wildtrax
 
-write.csv(birddata2,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
+# change incorrect species names
+
+names(birddata2)[8] <- "common_name"
+
+common_name <- c("Gray Jay", "Le Conte's Sparrow", "Mew Gull")
+good_name <- c("Canada Jay", "LeConte's Sparrow", "Short-billed Gull")
+good_code <- c("CAJA","LCSP", "SBGU")
+corrs <- data.frame(cbind(common_name, good_name, good_code))
+
+birddata3 = merge(birddata2, corrs, by = "common_name", all.x = T)
+
+for(i in 1:nrow(birddata3)){
+  if(!is.na(birddata3$good_name[i])) {
+    birddata3$common_name[i] <- birddata3$good_name[i]}
+  if(!is.na(birddata3$good_name[i])) {
+    birddata3$species_code[i] <- birddata3$good_code[i]
+  }
+}
+birddata3 = birddata3 %>% select(-good_name, -good_code)
+
+write.csv(birddata3,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
 
 
 #### 2. Species List ####
 
 # Extract non-species tags
-
-speciestrue = str_extract_all(birddata2$species_common_name, pattern = "Unidentified*", simplify = T) != "Unidentified"
-speciestrue2 = str_extract_all(birddata2$species_common_name, pattern = "Light*", simplify = T) != "Light"
-speciestrue3 = str_extract_all(birddata2$species_common_name, pattern = "Moderate*", simplify = T) != "Moderate"
-speciestrue4 = str_extract_all(birddata2$species_common_name, pattern = "Heavy*", simplify = T) != "Heavy"
+speciestrue = str_extract_all(birddata3$common_name, pattern = "Unidentified*", simplify = T) != "Unidentified"
+speciestrue2 = str_extract_all(birddata3$common_name, pattern = "Light*", simplify = T) != "Light"
+speciestrue3 = str_extract_all(birddata3$common_name, pattern = "Moderate*", simplify = T) != "Moderate"
+speciestrue4 = str_extract_all(birddata3$common_name, pattern = "Heavy*", simplify = T) != "Heavy"
 summary(speciestrue2)
 
-spp <- birddata2[speciestrue & speciestrue2 & speciestrue3 & speciestrue4, ] # subset
+spp <- birddata3[speciestrue & speciestrue2 & speciestrue3 & speciestrue4, ] # subset
 
 spp2 <- spp %>% # take just the species and their associated codes
-  select(species_common_name, species_code) %>%
+  select(common_name, species_code) %>%
   unique() %>%
-  arrange(species_common_name)
+  arrange(common_name)
 
 spp2
 
-write.csv(spp2, paste0(project, "_ARU_Species_List_",version,".csv"), row.names = F )
+
+
+sppclements<-birdfam[birdfam$English.name %in% spp2$common_name,
+                   c("English.name", "scientific.name","order","family")]
+pos=str_locate(sppclements$family, " " )[,2]
+str_sub(sppclements$family, start = 1, end = pos-1)
+sppclements$family<-str_sub(sppclements$family, start = 1, end = pos-1)
+sppclements$class<-"Aves"
+
+spp3 = merge(spp2, sppclements, by.x = "common_name", by.y = "English.name", all.x = T)
+names(spp3)[3] <- "scientific_name"
+# Manually add other species
+spp3[is.na(spp3$scientific_name),]
+
+spp3[spp3$common_name == "American Beaver", "scientific_name"] <- "Castor candensis"
+spp3[spp3$common_name == "American Beaver", "order"] <- "Rodentia"
+spp3[spp3$common_name == "American Beaver", "family"] <- "Castoridae"
+spp3[spp3$common_name == "American Beaver", "class"] <- "Mammalia"
+
+spp3[spp3$common_name == "Red Squirrel", "scientific_name"] <- "Tamiasciurus hudsonicus"
+spp3[spp3$common_name == "Red Squirrel", "family"] <- "Sciuridae"
+spp3[spp3$common_name == "Red Squirrel", "order"] <- "Rodentia"
+spp3[spp3$common_name == "Red Squirrel", "class"] <- "Mammalia"
+
+
+spp3[spp3$common_name == "Wood Frog", "scientific_name"] <- "Rana sylvatica"
+spp3[spp3$common_name == "Wood Frog", "family"] <- "Ranidae"
+spp3[spp3$common_name == "Wood Frog", "order"] <- "Anura"
+spp3[spp3$common_name == "Wood Frog", "class"] <- "Amphibia"
+
+
+spp3[spp3$common_name == "Woodborer Beetle", "scientific_name"] <- NA
+spp3[spp3$common_name == "Woodborer Beetle", "family"] <- NA
+spp3[spp3$common_name == "Woodborer Beetle", "order"] <- "Coleoptera"
+spp3[spp3$common_name == "Woodborer Beetle", "class"] <- "Insecta"
+
+# done with that, time to save it
+write.csv(spp3, paste0(project, "_ARU_Species_List_",version,".csv"), row.names = F )
 
 
 #### 3. Camera effort ####
 
-str(birddata2)
+str(birddata3)
 
-eff<-birddata2[,c("location","recording_date","method")]
+eff<-birddata3[,c("location","recording_date","method")]
 eff<-unique(eff)
 table(eff$location)
 no_of_recordings<-as.data.frame(table(eff$location))
@@ -153,19 +207,16 @@ write.csv(eff, paste0(project,"_ARU_Deployment_Data_", version, ".csv"), row.nam
 # first, we need to pull the frog call indexes (CI #) separately
 # then, we need to deal with the TMTC (to many to count) situations
 
-str(birddata2)
-birddata2$year = str_sub(birddata2$recording_date, start = 1, end = 4)
-birddata2$year = as.numeric(birddata2$year)
-head(birddata2$year)
+str(birddata3)
+birddata3$year = str_sub(birddata3$recording_date, start = 1, end = 4)
+birddata3$year = as.numeric(birddata3$year)
+head(birddata3$year)
 
 # first, deal with call indexes
-
-wofr <- birddata2[birddata2$species_code == "WOFR",] # pull all wood frogs
-callinds<- birddata2[birddata2$species_code != "WOFR" &  # pull rest of call indexes
-                       str_extract_all(birddata2$abundance, pattern = "CI*", simplify = T)=="CI",] #pull call indexes
+wofr <- birddata3[birddata3$species_code == "WOFR",] # pull all wood frogs
+callinds<- birddata3[birddata3$species_code != "WOFR" &  # pull rest of call indexes
+                       str_extract_all(birddata3$abundance, pattern = "CI*", simplify = T)=="CI",] #pull call indexes
 amphibs = rbind(wofr, callinds)
-
-
 
 amphibs$abundance
 amphibs[amphibs$abundance == "1","abundance"] <- "CI 1" # change 1 to CI 1
@@ -177,60 +228,51 @@ amphibs$abundance
 
 amphib.ind = amphibs %>%
   arrange(location, recording_date) %>%
-  group_by(location, species_common_name, year) %>%
+  group_by(location, common_name, year) %>%
   summarise(index = max(abundance)) %>%
   mutate(abundance = as.integer(index))
 
-
-
 # now deal with TMTC and abundance estimation
-
-tpos<-str_locate(birddata2$species_comment, "AE")[,2]
-tpos2<-str_locate(birddata2$species_comment, "-")[,2]
-tmptag=str_sub(birddata2$species_comment, start = tpos+3, end = tpos2-1)
+tpos<-str_locate(birddata3$species_comments, "AE")[,2]
+tpos2<-str_locate(birddata3$species_comments, "-")[,2]
+tmptag=str_sub(birddata3$species_comments, start = tpos+3, end = tpos2-1)
 tmptag
 as.numeric(tmptag)
-birddata2$abundance_estimation<- as.numeric(tmptag)
+birddata3$abundance_estimation<- as.numeric(tmptag)
 
-summary(birddata2$abundance)
-birddata2$abundance <- factor(birddata2$abundance, ordered = T)
-summary(birddata2$abundance) 
-max(birddata2$abundance) # TMTC is the highest position
+summary(birddata3$abundance)
+birddata3$abundance <- factor(birddata3$abundance, ordered = T)
+summary(birddata3$abundance) 
+max(birddata3$abundance) # TMTC is the highest position
 
-bird.ind=birddata2 %>%
-  filter(species_code != "WOFR" & str_extract_all(birddata2$abundance, pattern = "CI*", simplify = T) != "CI") %>%
+bird.ind=birddata3 %>%
+  filter(species_code != "WOFR" & str_extract_all(birddata3$abundance, pattern = "CI*", simplify = T) != "CI") %>%
   arrange(location, recording_date) %>%
-  group_by(location, species_common_name, year) %>%
+  group_by(location, common_name, year) %>%
   summarise(index = max(abundance) ,
             max_unique_name = n_distinct(unique_name),
             max_abundance_estimation = max(abundance_estimation))
 
 bird.ind2=bird.ind%>%
-  group_by(location, species_common_name) %>%
+  group_by(location, common_name) %>%
   mutate(abundance = max(max_unique_name, max_abundance_estimation, na.rm = T)) %>%
   select(-max_unique_name, -max_abundance_estimation)
 
 summary(bird.ind2$index)
 bird.ind2[!bird.ind2$index %in% c("TMTT", "CI 1", "CI 2", "CI 3"), "index"] <- NA
 
-
-
 # Now merge the two
-
-# amphib.ind$index = factor(amphib.ind$index, ordered = T,levels = c("CI 1", "CI 2", "CI 3", "TMTT"))
-
 amphib.ind$index = as.character(amphib.ind$index)
 bird.ind2$index = as.character(bird.ind2$index)
 
 ind=rbind(bird.ind2, amphib.ind)
 
-
-sppfull<-birddata2 %>% 
-  select(species_common_name, species_code) %>%
+sppfull<-birddata3 %>% 
+  select(common_name, species_code) %>%
   unique()
 
 ind2<-merge(ind,sppfull)
-ind2 = arrange(ind2,location,species_common_name)
+ind2 = arrange(ind2,location,common_name)
 ind2 = select(ind2,2,1,3,4,5,6)
 
 head(ind2)
