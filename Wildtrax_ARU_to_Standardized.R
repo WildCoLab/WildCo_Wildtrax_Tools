@@ -22,12 +22,11 @@
 
 rm(list=ls())
 
-
-library(dplyr)
 library(tidyr)
+library(dplyr)
 library(stringr)
 
-version<-"v4"
+version<-"v5"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 
@@ -37,24 +36,49 @@ setwd("C:/Users/laura/Documents/Wildco/3. Data and scripts/1. Master data")
 #### 1. Load, clean, and merge detection data ####
 
 # Load station covariates
-cov<-read.csv("Tuyeta_Station_Covariates_v3.csv")
+cov<-read.csv("Tuyeta_Station_Covariates_v4.csv")
 latlongs<-cov[,c("location","latitude","longitude")]
 head(latlongs)
 
 # In my project, the location names are not correct.
 # Need to fix them
 
-dat1<-read.csv("../4. Raw data downloads/ECCC_Boreal_Monitoring_Strategy_CWS_Northern_Region_2020_-_Tuyeta_report.csv")
-dat2<-read.csv("../4. Raw data downloads/ECCC_Tuyeta_PA_CWS_Northern_Region_2020_report.csv")
-dat3<-read.csv("../4. Raw data downloads/ECCC_Tuyeta_PA_CWS_Northern_Region_2021_report.csv")
-dat2$location_2<-str_pad(dat2$location_2,2,side="left",pad="0")
-names(dat3)[! names(dat3) %in% names(dat2)]
-dat4<-dat3[,names(dat3)[names(dat3) %in% names(dat2)]]
-dats<-rbind(dat1,dat2,dat4)
+dat1<-read.csv("../4. Raw data downloads/Tuyeta_BMS_basic_summary.csv")
+dat2<-read.csv("../4. Raw data downloads/Tuyeta_TTEA_basic_summary.csv")
+dat3<-read.csv("../4. Raw data downloads/Tuyeta_TUY_basic_summary.csv")
+
+head(unique(dat1$location)) # needs left pad 0s cluster and station
+head(unique(dat2$location)) # looks good
+head(unique(dat3$location)) # needs left pad 0s on cluster and station
+
+dat13 = rbind(dat1, dat3)
+
+dat13$location_1 <- rep(NA, nrow(dat13))
+dat13$location_2 <- rep(NA, nrow(dat13))
+dat13$location_3 <- rep(NA, nrow(dat13))
+dat13$location_4 <- rep(NA, nrow(dat13))
+
+i=1
+for (i in 1: nrow(dat13)){
+  dat13$location_1[i] = str_split(dat13$location[i],pattern = "-")[[1]][1]
+  dat13$location_2[i] = str_split(dat13$location[i],pattern = "-")[[1]][2]
+  dat13$location_3[i] = str_split(dat13$location[i],pattern = "-")[[1]][3]
+  dat13$location_4[i] = str_split(dat13$location[i],pattern = "-")[[1]][4]
+}
+
+for (i in 1:nrow(dat2)){
+  dat2$location_1[i] = str_split(dat2$location[i],pattern = "-")[[1]][1]
+  dat2$location_2[i] = str_split(dat2$location[i],pattern = "-")[[1]][2]
+  dat2$location_3[i] = str_split(dat2$location[i],pattern = "-")[[1]][3]
+  dat2$location_4[i] = str_split(dat2$location[i],pattern = "-")[[1]][4]
+}
+
+dat13$location_3<-str_pad(dat13$location_3,3,side="left",pad="0")
+dat13$location_4<-str_pad(dat13$location_4,2,side="left",pad="0")
+
+dats<-rbind(dat13,dat2)
 
 str(dats)
-dats$location_3<-str_pad(dats$location_3,3,side = "left",pad="0")
-dats$location_4<-str_pad(dats$location_4,2,side="left",pad="0")
 dats$location<-str_c(dats$location_1,dats$location_2,dats$location_3,dats$location_4,sep="-")
 head(dats$location)
 tail(dats$location)
@@ -66,39 +90,39 @@ birddata$latitude<-as.numeric(birddata$latitude)
 summary(birddata$latitude)
 # check for stations that have no lat long:
 summary(as.factor(birddata[is.na(birddata$latitude),"location"]))
-# this is because BMS-MMO-032-28 is the wrong location name :eyeroll:
+# noice
 
 # get rid of columns that we don't need
+names(birddata)
+
 birddata2=birddata%>%
-  select(-project,-organization,-status,-buffer_radius_m,
-         -daily_weather_station_nm,-daily_weather_station_elevation,-daily_weather_station_distance,
-         -daily_min_temp,-daily_max_temp,-daily_mean_temp,-daily_total_rain_mm,
-         -daily_total_snow_cm,-daily_precipitation_mm,-daily_snow_on_ground_cm,
-         -hourly_weather_station_nm,-hourly_weather_station_elevation,-hourly_weather_station_distance,
-         -hourly_temp,-hourly_dew_point,-hourly_rel_humidity,-hourly_station_pressure,
-         -hourly_humidex,-hourly_wind_chill,-hourly_wind_direction,-hourly_weather_attributes,
-         -hourly_precipitation_mm,-hourly_wind_speed,-hourly_visibility_km,-land_features,
-         -equipment_used,-tagged_in_wildtrax,-location_1,-location_2,-location_3,-location_4)
+  select(-project_name,-`ï..organization`,-location_1,-location_2,-location_3,-location_4)
 
 birddata2[birddata2 == " "] <- NA
 
-birddata3=birddata2[birddata2$confidence %in% c("Confident", "Confirmed"),]
+birddata2$is_verified <- as.factor(birddata2$is_verified)
+summary(birddata2$is_verified) # okie dokie, don't know what the deal is there
+# probably need to verify species IDs straight on Wildtrax
 
-write.csv(birddata3,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
+write.csv(birddata2,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
 
-tobechecked<-birddata2[birddata2$confidence == "To Be Checked",]
-write.csv(tobechecked, paste0(project,"_ARU_records_to_be_checked_",version,".csv"), row.names = F)
 
 #### 2. Species List ####
 
+speciestrue = str_extract_all(birddata2$species_common_name, pattern = "Unidentified*", simplify = T) != "Unidentified"
+speciestrue2 = str_extract_all(birddata2$species_common_name, pattern = "Light*", simplify = T) != "Light"
+speciestrue3 = str_extract_all(birddata2$species_common_name, pattern = "Moderate*", simplify = T) != "Moderate"
+speciestrue4 = str_extract_all(birddata2$species_common_name, pattern = "Heavy*", simplify = T) != "Heavy"
+summary(speciestrue2)
 
-spp<-birddata2 %>% 
-  select(species_english_name, scientific_name, species_code,species_class) %>%
+spp <- birddata2[speciestrue & speciestrue2 & speciestrue3 & speciestrue4, ]
+
+spp2 <- spp %>% 
+  select(species_common_name, species_code) %>%
   unique() %>%
-  filter(!is.na(scientific_name)) %>%
-  arrange(species_class, species_english_name)
+  arrange(species_common_name)
 
-spp
+spp2
 
 write.csv(spp, paste0(project, "_ARU_Species_List_",version,".csv"), row.names = F )
 
@@ -107,12 +131,12 @@ write.csv(spp, paste0(project, "_ARU_Species_List_",version,".csv"), row.names =
 
 str(birddata2)
 
-eff<-birddata2[,c("location","recording_date","recording_time","method")]
+eff<-birddata2[,c("location","recording_date","method")]
 eff<-unique(eff)
 table(eff$location)
 no_of_recordings<-as.data.frame(table(eff$location))
 head(eff)
-eff$recording_begin<-paste(eff$recording_date, eff$recording_time)
+names(eff)[2] <- "recording_begin"
 
 strptime(eff$recording_begin[1], "%Y-%m-%d %H:%M:%S", tz="UTC")
 eff$recording_begin<-as.POSIXct(strptime(eff$recording_begin, "%Y-%m-%d %H:%M:%S", tz="UTC"))
@@ -130,10 +154,17 @@ write.csv(eff, paste0(project,"_ARU_Deployment_Data_", version, ".csv"), row.nam
 str(birddata2)
 birddata2$year = str_sub(birddata2$recording_date, start = 1, end = 4)
 birddata2$year = as.numeric(birddata2$year)
+head(birddata2$year)
 
 # first, deal with call indexes
 
-amphibs<- birddata2[birddata2$species_class == "AMPHIBIA",] #pull amphibians
+wofr <- birddata2[birddata2$species_code == "WOFR",] # pull all wood frogs
+callinds<- birddata2[birddata2$species_code != "WOFR" &  # pull rest of call indexes
+                       str_extract_all(birddata2$abundance, pattern = "CI*", simplify = T)=="CI",] #pull call indexes
+amphibs = rbind(wofr, callinds)
+
+
+
 amphibs$abundance
 amphibs[amphibs$abundance == "1","abundance"] <- "CI 1" # change 1 to CI 1
 amphibs$abundance <- factor(amphibs$abundance, ordered = T)
@@ -143,8 +174,8 @@ as.integer(amphibs$abundance)
 amphibs$abundance
 
 amphib.ind = amphibs %>%
-  arrange(location, recording_date, recording_time) %>%
-  group_by(location, species_english_name, year) %>%
+  arrange(location, recording_date) %>%
+  group_by(location, species_common_name, year) %>%
   summarise(index = max(abundance)) %>%
   mutate(abundance = as.integer(index))
 
@@ -165,17 +196,17 @@ summary(birddata2$abundance)
 max(birddata2$abundance) # TMTC is the highest position
 
 bird.ind=birddata2 %>%
-  filter(species_class != "AMPHIBIA") %>%
-  arrange(location, recording_date, recording_time) %>%
-  group_by(location, species_english_name, year) %>%
+  filter(species_code != "WOFR" & str_extract_all(birddata2$abundance, pattern = "CI*", simplify = T) != "CI") %>%
+  arrange(location, recording_date) %>%
+  group_by(location, species_common_name, year) %>%
   summarise(index = max(abundance) ,
-            max_count = n_distinct(species_individual_name),
+            max_unique_name = n_distinct(unique_name),
             max_abundance_estimation = max(abundance_estimation))
 
 bird.ind2=bird.ind%>%
-  group_by(location, species_english_name) %>%
-  mutate(abundance = max(max_count, max_abundance_estimation, na.rm = T)) %>%
-  select(-max_count, -max_abundance_estimation)
+  group_by(location, species_common_name) %>%
+  mutate(abundance = max(max_unique_name, max_abundance_estimation, na.rm = T)) %>%
+  select(-max_unique_name, -max_abundance_estimation)
 
 summary(bird.ind2$index)
 bird.ind2[!bird.ind2$index %in% c("TMTT", "CI 1", "CI 2", "CI 3"), "index"] <- NA
@@ -193,12 +224,12 @@ ind=rbind(bird.ind2, amphib.ind)
 
 
 sppfull<-birddata2 %>% 
-  select(species_english_name, scientific_name, species_code,species_class) %>%
+  select(species_common_name, species_code) %>%
   unique()
 
 ind2<-merge(ind,sppfull)
-ind2 = arrange(ind2,location,species_english_name)
-ind2 = select(ind2,2,1,3,4,5,6,7)
+ind2 = arrange(ind2,location,species_common_name)
+ind2 = select(ind2,2,1,3,4,5,6)
 
 head(ind2)
 
