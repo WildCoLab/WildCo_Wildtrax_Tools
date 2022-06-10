@@ -26,7 +26,7 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v10"
+version<-"v11"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
@@ -39,6 +39,14 @@ head(data)
 tail(data) # the way this is ordered makes no sense to me but it doesn't really matter
 str(data) # pretty much everything is a character "chr"
 
+# Load pantheria data for mammal species traits:
+# Download the txt file from the UO - Biostats Github:
+# https://github.com/UO-Biostats/UO_ABS/tree/master/CLASS_MATERIALS/Datasets/PanTHERIA 
+pantheria <- read.delim("../4. Raw data downloads/ECOL_90_184/PanTHERIA_1-0_WR05_Aug2008.txt")
+
+# Load clements checklist for bird species taxonomy:
+# https://www.birds.cornell.edu/clementschecklist/download/
+birdfam<-read.csv("../4. Raw data downloads/Clements-Checklist-v2021-August-2021.csv")
 
 
 #### 1. Clean data and save species list ####
@@ -52,6 +60,7 @@ data$number_individuals<-NULL
 data$field_of_view<-as.factor(data$field_of_view)
 summary(data$field_of_view)
 
+# Replace the funny Wildtrax VNA with a proper NA
 data[data == "VNA"]<-NA
 
 as.POSIXct(head(data$date_detected))
@@ -61,19 +70,27 @@ data$date_detected = as.POSIXct(data$date_detected, tz = "MST")
 str(data)
 summary(data)
 
+# standardize capitalization
 #data$common_name <- str_to_title(data$common_name)
 #str_to_sentence(data$common_name)
+table(data$common_name)
 
-unique(data$common_name)
 data[data$common_name == "Beaver","common_name"] <- "American Beaver"
 data[data$common_name == "Red fox","common_name"] <- "Red Fox"
 data[data$common_name == "Northern goshawk","common_name"] <- "Northern Goshawk"
 data[data$common_name == "Northern harrier","common_name"] <- "Northern Harrier"
 data[data$common_name == "Grizzly bear","common_name"] <- "Grizzly Bear"
+data[data$common_name == "Gray Jay", "common_name"] <- "Canada Jay"
 
+# change woodland to just caribou
+data[data$common_name == "Woodland Caribou","common_name"] <- "Caribou"
+data[data$common_name == "Caribou","scientific_name"] <- "Rangifer tarandus"
+data[data$common_name == "Caribou","species_rank"] <- "Species"
+
+# change capitalization of  order name
+data$species_class <- str_to_title(data$species_class)
 
 data$common_name<-as.factor(data$common_name)
-
 data=arrange(data,location,date_detected)
 
 spp <- data %>% 
@@ -82,6 +99,83 @@ spp <- data %>%
   unique() %>%
   arrange(desc(species_class), common_name) %>%
   as.data.frame()
+
+# merge with species traits data
+# fix family column in clements
+head(birdfam$family)
+pos=str_locate(birdfam$family, " " )[,2]
+str_sub(birdfam$family, start = 1, end = pos-1)
+birdfam$family<-str_sub(birdfam$family, start = 1, end = pos-1)
+
+birdfam$mass_g <- rep(NA, nrow(birdfam))
+
+birds<-birdfam[birdfam$scientific.name %in% data$scientific_name,
+               c("scientific.name","order","family", "mass_g")]
+
+mammals<-pantheria[pantheria$MSW05_Binomial %in% data$scientific_name, 
+                   c("MSW05_Binomial","MSW05_Order", "MSW05_Family","X5.1_AdultBodyMass_g")]
+
+str(birdfam)
+str(mammals)
+names(mammals) = names(birds)
+
+traits<-rbind(birds,mammals)
+traits
+
+spp<- merge(spp, traits, by.x="scientific_name", by.y = "scientific.name", all.x = T)
+
+
+# need order and family for Spruce Grouse, Sandhill Crane
+spp[spp$common_name == "Spruce Grouse","order"] <- "Galliformes"
+spp[spp$common_name == "Spruce Grouse","family"] <- "Phasianidae"
+spp[spp$common_name == "Sandhill Crane","order"] <- "Gruiformes"
+spp[spp$common_name == "Sandhill Crane","family"] <- "Gruidae"
+
+# now we need to fill in all the masses for birds and mink
+
+spp<-arrange(spp,desc(species_class),common_name)
+spp
+
+spp[spp$common_name == "Mink",6] <- 1150
+spp[spp$common_name == "American Pipit",6] <- 21
+spp[spp$common_name == "American Robin",6] <- 77
+spp[spp$common_name == "American Tree Sparrow",6] <- 18
+spp[spp$common_name == "American Wigeon",6] <- 720
+spp[spp$common_name == "Canada Goose",6] <- 4500
+spp[spp$common_name == "Common Raven",6] <- 1200
+spp[spp$common_name == "Dark-eyed Junco",6] <- 19
+spp[spp$common_name == "Fox Sparrow",6] <- 32
+spp[spp$common_name == "Canada Jay",6] <- 70
+spp[spp$common_name == "Greater Scaup",6] <- 1050
+spp[spp$common_name == "Green-winged Teal",6] <- 350
+spp[spp$common_name == "Hermit Thrush",6] <- 31
+spp[spp$common_name == "Hoary Redpoll",6] <- 13
+spp[spp$common_name == "Lesser Scaup",6] <- 830
+spp[spp$common_name == "Mallard",6] <- 1100
+spp[spp$common_name == "Northern Flicker",6] <- 130
+spp[spp$common_name == "Northern Goshawk",6] <- 950
+spp[spp$common_name == "Northern Harrier",6] <- 420
+spp[spp$common_name == "Northern Pintail",6] <- 800
+spp[spp$common_name == "Northern Shoveler",6] <- 610
+spp[spp$common_name == "Orange-crowned Warbler",6] <- 9
+spp[spp$common_name == "Pacific Loon",6] <- 1700
+spp[spp$common_name == "Palm Warbler",6] <- 10.3
+spp[spp$common_name == "Ring-necked Duck",6] <- 700
+spp[spp$common_name == "Rock Ptarmigan",6] <- 420
+spp[spp$common_name == "Ruby-crowned Kinglet",6] <- 6.5
+spp[spp$common_name == "Ruffed Grouse",6] <- 580
+spp[spp$common_name == "Rusty Blackbird",6] <- 60
+spp[spp$common_name == "Sandhill Crane",6] <- 3500
+spp[spp$common_name == "Sharp-tailed Grouse",6] <- 880
+spp[spp$common_name == "Spruce Grouse",6] <- 460
+spp[spp$common_name == "Surf Scoter",6] <- 950
+spp[spp$common_name == "Swainson's Thrush",6] <- 31
+spp[spp$common_name == "Tundra Swan",6] <- 6200
+spp[spp$common_name == "White-crowned Sparrow",6] <- 29
+spp[spp$common_name == "Willow Ptarmigan",6] <- 550
+spp[spp$common_name == "Wilson's Snipe",6] <- 105
+spp[spp$common_name == "Yellow-rumped Warbler",6] <- 12.3
+
 
 write.csv(spp, paste0(project, "_CAM_Species_List_", version, ".csv" ), row.names = F)
 
@@ -183,9 +277,7 @@ class(deploy_wide$duration)
 write.csv(deploy_wide, paste0(project,"_CAM_Deployment_Data_", version, ".csv"),row.names = F)
 
 
-
 #### 3. Clean data and variable names for detection data ####
-
 
 str(data)
 
@@ -253,10 +345,8 @@ tendpos=str_locate(tmptag,"\\D")[,2]
 tendpos[is.na(tendpos)]<-2
 dat$groupcount_tag<- str_sub(tmptag,start = 1, end = tendpos-1)
 
-
 # Now collapse the thing into independent events
 class(dat$count) # should be numeric
-
 
 events<-dat %>%
   # first group by event and the other variables we want to keep
@@ -277,11 +367,9 @@ for (i in 1: nrow(events)){
 
 events$gc_tag<-as.numeric(events$gc_tag)
 
-
 names(events)[8]
 names(events)[8]<-"group_count"
 events <- select(events, -gc_regular) # remove the now redundant group count column
-
 
 # Calculate the event length and size 
 
@@ -303,7 +391,6 @@ diff <- diff[duplicated(diff)==FALSE,]
 # Merge the data
 independent_data <-  merge(diff, events, by = "event_id", all.y = T)
 str(independent_data)
-
 
 # Save it for a rainy day
 write.csv(independent_data, paste0(project,"_CAM_Independent_Detections_",version, ".csv"), row.names = F)
