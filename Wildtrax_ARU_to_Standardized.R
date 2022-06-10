@@ -122,7 +122,7 @@ for(i in 1:nrow(birddata3)){
 }
 birddata3 = birddata3 %>% select(-good_name, -good_code)
 
-write.csv(birddata3,paste0(project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
+write.csv(birddata3,paste0("../1. Master Data/", project,"_ARU_Detection_Data_", version, ".csv"),row.names = F)
 
 
 #### 2. Species List ####
@@ -142,8 +142,6 @@ spp2 <- spp %>% # take just the species and their associated codes
   arrange(common_name)
 
 spp2
-
-
 
 sppclements<-birdfam[birdfam$English.name %in% spp2$common_name,
                    c("English.name", "scientific.name","order","family")]
@@ -167,12 +165,10 @@ spp3[spp3$common_name == "Red Squirrel", "family"] <- "Sciuridae"
 spp3[spp3$common_name == "Red Squirrel", "order"] <- "Rodentia"
 spp3[spp3$common_name == "Red Squirrel", "class"] <- "Mammalia"
 
-
 spp3[spp3$common_name == "Wood Frog", "scientific_name"] <- "Rana sylvatica"
 spp3[spp3$common_name == "Wood Frog", "family"] <- "Ranidae"
 spp3[spp3$common_name == "Wood Frog", "order"] <- "Anura"
 spp3[spp3$common_name == "Wood Frog", "class"] <- "Amphibia"
-
 
 spp3[spp3$common_name == "Woodborer Beetle", "scientific_name"] <- NA
 spp3[spp3$common_name == "Woodborer Beetle", "family"] <- NA
@@ -180,7 +176,7 @@ spp3[spp3$common_name == "Woodborer Beetle", "order"] <- "Coleoptera"
 spp3[spp3$common_name == "Woodborer Beetle", "class"] <- "Insecta"
 
 # done with that, time to save it
-write.csv(spp3, paste0(project, "_ARU_Species_List_",version,".csv"), row.names = F )
+write.csv(spp3, paste0("../1. Master Data/", project, "_ARU_Species_List_",version,".csv"), row.names = F )
 
 
 #### 3. Camera effort ####
@@ -197,11 +193,11 @@ names(eff)[2] <- "recording_begin"
 strptime(eff$recording_begin[1], "%Y-%m-%d %H:%M:%S", tz="UTC")
 eff$recording_begin<-as.POSIXct(strptime(eff$recording_begin, "%Y-%m-%d %H:%M:%S", tz="UTC"))
 
-write.csv(eff, paste0(project,"_ARU_Deployment_Data_", version, ".csv"), row.names = F)
+write.csv(eff, paste0("../1. Master Data/", project,"_ARU_Deployment_Data_", version, ".csv"), row.names = F)
 
 
 
-#### 3. Independent detections ####
+#### 4. Independent detections ####
 
 # group count here is tricky
 # first, we need to pull the frog call indexes (CI #) separately
@@ -274,10 +270,9 @@ sppfull<-birddata3 %>%
 ind2<-merge(ind,sppfull)
 ind2 = arrange(ind2,location,common_name)
 ind2 = select(ind2,2,1,3,4,5,6)
+ind2 = arrange(ind2, location, common_name)
 
 head(ind2)
 
-write.csv(ind2, paste0(project,"_ARU_Independent_Detections_",version,".csv"),
+write.csv(ind2, paste0("../1. Master Data/", project,"_ARU_Independent_Detections_",version,".csv"),
           row.names = F)
-
-
