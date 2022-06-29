@@ -26,14 +26,14 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v11"
+version<-"v12"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
 
 setwd("C:/Users/laura/Documents/Wildco/3. Data and scripts/1. Master data")
 
-data<-read.csv("../4. Raw data downloads/NWTBM_Tuyeta_Biodiversity_Project_2020_report.csv")
+data<-read.csv("../4. Raw data/NWTBM_Tuyeta_Biodiversity_Project_2020_report.csv")
 
 head(data) 
 tail(data) # the way this is ordered makes no sense to me but it doesn't really matter
@@ -42,11 +42,11 @@ str(data) # pretty much everything is a character "chr"
 # Load pantheria data for mammal species traits:
 # Download the txt file from the UO - Biostats Github:
 # https://github.com/UO-Biostats/UO_ABS/tree/master/CLASS_MATERIALS/Datasets/PanTHERIA 
-pantheria <- read.delim("../4. Raw data downloads/ECOL_90_184/PanTHERIA_1-0_WR05_Aug2008.txt")
+pantheria <- read.delim("../4. Raw data/ECOL_90_184/PanTHERIA_1-0_WR05_Aug2008.txt")
 
 # Load clements checklist for bird species taxonomy:
 # https://www.birds.cornell.edu/clementschecklist/download/
-birdfam<-read.csv("../4. Raw data downloads/Clements-Checklist-v2021-August-2021.csv")
+birdfam<-read.csv("../4. Raw data/Clements-Checklist-v2021-August-2021.csv")
 
 
 #### 1. Clean data and save species list ####
@@ -348,6 +348,10 @@ dat$groupcount_tag<- str_sub(tmptag,start = 1, end = tendpos-1)
 # Now collapse the thing into independent events
 class(dat$count) # should be numeric
 
+levels(dat$field_of_view)
+dat$field_of_view <- factor(dat$field_of_view, ordered = T , levels = c("WITHIN","START - First Good Image in FOV",
+                                     "END - Last Good Image in Field Of View","Out of Range"))
+
 events<-dat %>%
   # first group by event and the other variables we want to keep
   dplyr::group_by(event_id, common_name, scientific_name, species_rank, 
@@ -355,7 +359,8 @@ events<-dat %>%
   # then take group count as the max of the comments gc# count (gc_tag)
   # and seperately, as the max of the individual image count (gc_regular)
   dplyr::summarise (gc_tag = max(groupcount_tag, na.rm = T),
-                    gc_regular = max(count, na.rm = T))
+                    gc_regular = max(count, na.rm = T),
+                    fov = min(field_of_view, na.rm = T))
 # replace impossible values with NAs
 events$gc_regular[events$gc_regular == -Inf]<-NA
 
