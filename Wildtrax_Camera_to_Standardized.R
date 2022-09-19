@@ -26,7 +26,7 @@ library(tidyr)
 library(mefa4)
 library(stringr)
 
-version<-"v12"
+version<-"v13"
 project<-"Tuyeta" # version and project for naming saved csvs
 
 independent <- 30 # Set the "independence" interval in minutes
@@ -38,6 +38,7 @@ data<-read.csv("../4. Raw data/NWTBM_Tuyeta_Biodiversity_Project_2020_report.csv
 head(data) 
 tail(data) # the way this is ordered makes no sense to me but it doesn't really matter
 str(data) # pretty much everything is a character "chr"
+table(data$serial_number) # how odd
 
 # Load pantheria data for mammal species traits:
 # Download the txt file from the UO - Biostats Github:
@@ -52,6 +53,7 @@ birdfam<-read.csv("../4. Raw data/Clements-Checklist-v2021-August-2021.csv")
 #### 1. Clean data and save species list ####
 
 data$location<-as.factor(data$location) # tell R location is a factor not a character
+length(unique(data$location))
 data$field_of_view<-as.factor(data$field_of_view)
 data$age_class<-as.factor(data$age_class)
 data$sex<-as.factor(data$sex)

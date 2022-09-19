@@ -40,6 +40,7 @@ dat<-droplevels(img[img$species_rank %in% c("Species","Subspecies"),])
 eff <- read.csv("../1. Master data/Tuyeta_CAM_Deployment_Data_v10.csv", header=T)
 
 sta <- read.csv("../1. Master data/Tuyeta_Station_Covariates_v4.csv", header=T)
+sta <- filter(sta, cam_data == T)
 str(sta)
 
 ind <- read.csv("../1. Master data/Tuyeta_CAM_Independent_Detections_v10.csv", header=T)
@@ -228,7 +229,7 @@ abline(v=1, lty=2)
 
 ## Detection check
 
-The following plot helps you determine if you have detections occuring outside of the times cameras are active. *Important note* You can still get detections outside of the activity period if you have decided that the field of view was shifted and the data is un-comparable to that which was collected earlier.
+The following plot helps you determine if you have detections occurring outside of the times cameras are active. *Important note* You can still get detections outside of the activity period if you have decided that the field of view was shifted and the data is un-comparable to that which was collected earlier.
 
 ```{r, include=F}
 # Make species colour codes
@@ -278,6 +279,7 @@ for(j in 1:length(unique(eff$Plot.grp)))
 
 ```
 
+## Independent Detections
 
 Using an independance threshold of `r independent` minutes, the number of detections is reduced to `r nrow(ind)`. The rest of the analyses are conducted with this data. The summary of detections is as follows:
 
