@@ -1,9 +1,6 @@
 # Wildco Wildtrax Tools
 These scripts clean Wildtrax output, then summarise the data into deployment histories and independent detections.
 
-### Tuyeta_example_data.csv
-This is an example camera trap dataset, with 6 stations of data, from T'sudé Niliné Tuyeta Indigenous Protected Area.
-
 ### Wildtrax_ARU_to_Standardized.R
 This script summarizes Wildtrax ARU output. It saves four data frames: 
 1. Species List : common names, scientific names, and species class of all the species detected
